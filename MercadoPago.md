@@ -80,12 +80,15 @@ Replace `YOUR_API_KEY` if you use `API_KEY_SECRET`; use a random UUID for `Idemp
 curl -sS -X POST "http://localhost:3000/api/v1/payments/mercadopago/payment-link" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "X-MercadoPago-Access-Token: APP_USR-..." \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{
     "amount": 100050,
     "currency": "ARS",
     "title": "Test order",
-    "description": "Webhook test"
+    "description": "Webhook test",
+    "notificationUrl": "https://example.com/api/mercadopago?commerce_id=123&order_id=456",
+    "backUrls": { "success": "https://example.com/success" }
   }'
 ```
 

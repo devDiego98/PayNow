@@ -47,7 +47,13 @@ export const createMercadoPagoPaymentLink: RequestHandler = async (req, res, nex
   try {
     const raw = req.headers["idempotency-key"];
     const idempotencyKey = (Array.isArray(raw) ? raw[0] : raw) ?? "";
-    const result = await mercadopagoPaymentLinkService.createPaymentLink(req.body, idempotencyKey);
+    const tokenHeader = req.headers["x-mercadopago-access-token"];
+    const accessTokenOverride = (Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader) ?? undefined;
+    const result = await mercadopagoPaymentLinkService.createPaymentLink(
+      req.body,
+      idempotencyKey,
+      accessTokenOverride
+    );
     res.status(201).json(result);
   } catch (e) {
     next(e);

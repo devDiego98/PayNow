@@ -50,6 +50,14 @@ export const createMercadoPagoPaymentLinkBodySchema = z.object({
   cbu: z.string().min(1).optional(),
   externalReference: z.string().min(1).optional(),
   payerEmail: z.string().email().optional(),
+  notificationUrl: z.string().url().optional(),
+  backUrls: z
+    .object({
+      success: z.string().url().optional(),
+      pending: z.string().url().optional(),
+      failure: z.string().url().optional(),
+    })
+    .optional(),
 });
 
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;

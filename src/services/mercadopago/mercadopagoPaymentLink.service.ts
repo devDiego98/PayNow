@@ -15,6 +15,16 @@ export interface CreateMercadoPagoPaymentLinkDto {
   cbu?: string;
   externalReference?: string;
   payerEmail?: string;
+  /**
+   * Optional per-request override for Mercado Pago's `notification_url`.
+   * Useful when the caller needs to route webhooks back to a specific commerce/order.
+   */
+  notificationUrl?: string;
+  /**
+   * Optional per-request override for Mercado Pago's `back_urls` (Checkout Pro redirect URLs).
+   * If omitted, server env (`MERCADOPAGO_BACK_URL_*`) is used.
+   */
+  backUrls?: { success?: string; pending?: string; failure?: string };
 }
 
 export interface MercadoPagoPaymentLinkResponse {
@@ -70,12 +80,13 @@ export class MercadoPagoPaymentLinkService {
 
   async createPaymentLink(
     dto: CreateMercadoPagoPaymentLinkDto,
-    idempotencyKey: string
+    idempotencyKey: string,
+    accessTokenOverride?: string
   ): Promise<MercadoPagoPaymentLinkResponse> {
     const cached = await this.idempotencyService.get(idempotencyKey);
     if (cached) return cached as MercadoPagoPaymentLinkResponse;
 
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
+    const accessToken = accessTokenOverride?.trim() || process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
     if (!accessToken) {
       throw new AppError("MERCADOPAGO_ACCESS_TOKEN is not configured", 503);
     }
@@ -102,16 +113,22 @@ export class MercadoPagoPaymentLinkService {
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
-    const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL?.trim();
-    const backSuccess = process.env.MERCADOPAGO_BACK_URL_SUCCESS?.trim();
-    const backPending = process.env.MERCADOPAGO_BACK_URL_PENDING?.trim();
-    const backFailure = process.env.MERCADOPAGO_BACK_URL_FAILURE?.trim();
+    const notificationUrl =
+      dto.notificationUrl?.trim() || process.env.MERCADOPAGO_NOTIFICATION_URL?.trim();
+
+    const envBackSuccess = process.env.MERCADOPAGO_BACK_URL_SUCCESS?.trim();
+    const envBackPending = process.env.MERCADOPAGO_BACK_URL_PENDING?.trim();
+    const envBackFailure = process.env.MERCADOPAGO_BACK_URL_FAILURE?.trim();
 
     /** MP requires `back_urls.success` whenever `auto_return` is set; omit undefined keys so JSON is not missing `success`. */
     const back_urls: { success?: string; pending?: string; failure?: string } = {};
-    if (backSuccess) back_urls.success = backSuccess;
-    if (backPending) back_urls.pending = backPending;
-    if (backFailure) back_urls.failure = backFailure;
+    const requestedBackUrls = dto.backUrls;
+    if (requestedBackUrls?.success?.trim()) back_urls.success = requestedBackUrls.success.trim();
+    else if (envBackSuccess) back_urls.success = envBackSuccess;
+    if (requestedBackUrls?.pending?.trim()) back_urls.pending = requestedBackUrls.pending.trim();
+    else if (envBackPending) back_urls.pending = envBackPending;
+    if (requestedBackUrls?.failure?.trim()) back_urls.failure = requestedBackUrls.failure.trim();
+    else if (envBackFailure) back_urls.failure = envBackFailure;
     const hasBackUrls = Object.keys(back_urls).length > 0;
     const auto_return = back_urls.success ? ("approved" as const) : undefined;
 

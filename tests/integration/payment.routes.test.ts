@@ -124,6 +124,28 @@ describe("POST /api/v1/payments/mercadopago/payment-link", () => {
     expect(res.body.recipient.alias).toBe("alias.test");
   });
 
+  it("accepts X-MercadoPago-Access-Token override when env token is unset", async () => {
+    delete process.env.MERCADOPAGO_ACCESS_TOKEN;
+    delete process.env.MERCADOPAGO_RECIPIENT_ALIAS;
+    delete process.env.MERCADOPAGO_RECIPIENT_CBU;
+
+    const res = await request(createApp())
+      .post("/api/v1/payments/mercadopago/payment-link")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-link-override-1")
+      .set("X-MercadoPago-Access-Token", "APP_USR-override-token")
+      .send({
+        amount: 2500,
+        currency: "ARS",
+        title: "Override Token Test",
+        notificationUrl: "https://example.com/webhooks/mercadopago?commerce_id=1&order_id=2",
+        backUrls: { success: "https://example.com/success" },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.preferenceId).toBe("pref-test-1");
+  });
+
   it("returns 503 when MERCADOPAGO_ACCESS_TOKEN is unset", async () => {
     delete process.env.MERCADOPAGO_ACCESS_TOKEN;
 
