@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Persisted Mercado Pago payment data from webhooks + GET /v1/payments/:id (source of truth for approval).
+model MercadoPagoPaymentRecord {
+  id String @id @default(cuid())
+
+  mpPaymentId String @unique
+
+  externalReference String?
+  preferenceId      String?
+  merchantOrderId   String?
+
+  status       String
+  statusDetail String?
+
+  transactionAmount Decimal? @db.Decimal(20, 4)
+  currencyId        String?
+
+  payerEmail     String?
+  paymentMethodId  String?
+  paymentTypeId    String?
+
+  dateApproved DateTime?
+
+  /// Last webhook JSON body (when available).
+  notificationJson Json?
+  /// Full API response from Mercado Pago for audit.
+  paymentSnapshot  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([externalReference])
+  @@index([preferenceId])
+  @@index([status])
+  @@map("mercadopago_payment_records")
+}
+
+/// App user / payer identified by email; maps to a Stripe Customer.
+model Customer {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  stripeCustomerId String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  cards            SavedCard[]
+}
+
+/// Saved card: Stripe PaymentMethod attached to our Customer (card id for /payments).
+model SavedCard {
+  id                    String   @id @default(cuid())
+  customerId            String
+  customer              Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stripePaymentMethodId String   @unique
+  brand                 String?
+  last4                 String?
+  expMonth              Int?
+  expYear               Int?
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([customerId])
+}
