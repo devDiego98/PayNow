@@ -153,6 +153,7 @@ router.post("/", auth_middleware_1.authMiddleware, idempotency_middleware_1.requ
  *       and returns `initPoint` — the URL to open Checkout (web or Mercado Pago app on mobile).
  *
  *       **Funds** are collected by the Mercado Pago account linked to `MERCADOPAGO_ACCESS_TOKEN`.
+ *       To create a link for a specific commerce, send `X-MercadoPago-Access-Token` with that commerce's access token.
  *       Optional `alias` / `cbu` are stored in preference metadata for reconciliation; they do not redirect settlement to a third-party bank account.
  *       To restrict which alias/CBU clients may request, set `MERCADOPAGO_RECIPIENT_ALIAS` and/or `MERCADOPAGO_RECIPIENT_CBU` in the server environment.
  *     security:
@@ -164,6 +165,12 @@ router.post("/", auth_middleware_1.authMiddleware, idempotency_middleware_1.requ
  *         schema:
  *           type: string
  *           format: uuid
+ *       - in: header
+ *         name: X-MercadoPago-Access-Token
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Optional per-request Mercado Pago Access Token (to generate links under the commerce that owns the token).
  *     requestBody:
  *       required: true
  *       content:

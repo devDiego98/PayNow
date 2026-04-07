@@ -10,6 +10,20 @@ export interface CreateMercadoPagoPaymentLinkDto {
     cbu?: string;
     externalReference?: string;
     payerEmail?: string;
+    /**
+     * Optional per-request override for Mercado Pago's `notification_url`.
+     * Useful when the caller needs to route webhooks back to a specific commerce/order.
+     */
+    notificationUrl?: string;
+    /**
+     * Optional per-request override for Mercado Pago's `back_urls` (Checkout Pro redirect URLs).
+     * If omitted, server env (`MERCADOPAGO_BACK_URL_*`) is used.
+     */
+    backUrls?: {
+        success?: string;
+        pending?: string;
+        failure?: string;
+    };
 }
 export interface MercadoPagoPaymentLinkResponse {
     preferenceId: string;
@@ -27,6 +41,6 @@ export interface MercadoPagoPaymentLinkResponse {
 export declare class MercadoPagoPaymentLinkService {
     private readonly idempotencyService;
     constructor(idempotencyService: IdempotencyService);
-    createPaymentLink(dto: CreateMercadoPagoPaymentLinkDto, idempotencyKey: string): Promise<MercadoPagoPaymentLinkResponse>;
+    createPaymentLink(dto: CreateMercadoPagoPaymentLinkDto, idempotencyKey: string, accessTokenOverride?: string): Promise<MercadoPagoPaymentLinkResponse>;
 }
 //# sourceMappingURL=mercadopagoPaymentLink.service.d.ts.map

@@ -45,5 +45,13 @@ exports.createMercadoPagoPaymentLinkBodySchema = zod_1.z.object({
     cbu: zod_1.z.string().min(1).optional(),
     externalReference: zod_1.z.string().min(1).optional(),
     payerEmail: zod_1.z.string().email().optional(),
+    notificationUrl: zod_1.z.string().url().optional(),
+    backUrls: zod_1.z
+        .object({
+        success: zod_1.z.string().url().optional(),
+        pending: zod_1.z.string().url().optional(),
+        failure: zod_1.z.string().url().optional(),
+    })
+        .optional(),
 });
 //# sourceMappingURL=validator.js.map

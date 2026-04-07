@@ -121,6 +121,20 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu: z.ZodOptional<z.ZodString>;
     externalReference: z.ZodOptional<z.ZodString>;
     payerEmail: z.ZodOptional<z.ZodString>;
+    notificationUrl: z.ZodOptional<z.ZodString>;
+    backUrls: z.ZodOptional<z.ZodObject<{
+        success: z.ZodOptional<z.ZodString>;
+        pending: z.ZodOptional<z.ZodString>;
+        failure: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        pending?: string | undefined;
+        success?: string | undefined;
+        failure?: string | undefined;
+    }, {
+        pending?: string | undefined;
+        success?: string | undefined;
+        failure?: string | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     amount: number;
     currency: string;
@@ -130,6 +144,12 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu?: string | undefined;
     externalReference?: string | undefined;
     payerEmail?: string | undefined;
+    notificationUrl?: string | undefined;
+    backUrls?: {
+        pending?: string | undefined;
+        success?: string | undefined;
+        failure?: string | undefined;
+    } | undefined;
 }, {
     amount: number;
     currency?: string | undefined;
@@ -139,6 +159,12 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu?: string | undefined;
     externalReference?: string | undefined;
     payerEmail?: string | undefined;
+    notificationUrl?: string | undefined;
+    backUrls?: {
+        pending?: string | undefined;
+        success?: string | undefined;
+        failure?: string | undefined;
+    } | undefined;
 }>;
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;
 //# sourceMappingURL=validator.d.ts.map

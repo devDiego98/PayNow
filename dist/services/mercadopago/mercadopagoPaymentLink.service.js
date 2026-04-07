@@ -36,11 +36,11 @@ class MercadoPagoPaymentLinkService {
     constructor(idempotencyService) {
         this.idempotencyService = idempotencyService;
     }
-    async createPaymentLink(dto, idempotencyKey) {
+    async createPaymentLink(dto, idempotencyKey, accessTokenOverride) {
         const cached = await this.idempotencyService.get(idempotencyKey);
         if (cached)
             return cached;
-        const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
+        const accessToken = accessTokenOverride?.trim() || process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
         if (!accessToken) {
             throw new errors_1.AppError("MERCADOPAGO_ACCESS_TOKEN is not configured", 503);
         }
@@ -63,18 +63,25 @@ class MercadoPagoPaymentLinkService {
             metadata.recipient_cbu = normalizeCbu(dto.cbu);
         const client = new mercadopago_1.MercadoPagoConfig({ accessToken });
         const preference = new mercadopago_1.Preference(client);
-        const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL?.trim();
-        const backSuccess = process.env.MERCADOPAGO_BACK_URL_SUCCESS?.trim();
-        const backPending = process.env.MERCADOPAGO_BACK_URL_PENDING?.trim();
-        const backFailure = process.env.MERCADOPAGO_BACK_URL_FAILURE?.trim();
+        const notificationUrl = dto.notificationUrl?.trim() || process.env.MERCADOPAGO_NOTIFICATION_URL?.trim();
+        const envBackSuccess = process.env.MERCADOPAGO_BACK_URL_SUCCESS?.trim();
+        const envBackPending = process.env.MERCADOPAGO_BACK_URL_PENDING?.trim();
+        const envBackFailure = process.env.MERCADOPAGO_BACK_URL_FAILURE?.trim();
         /** MP requires `back_urls.success` whenever `auto_return` is set; omit undefined keys so JSON is not missing `success`. */
         const back_urls = {};
-        if (backSuccess)
-            back_urls.success = backSuccess;
-        if (backPending)
-            back_urls.pending = backPending;
-        if (backFailure)
-            back_urls.failure = backFailure;
+        const requestedBackUrls = dto.backUrls;
+        if (requestedBackUrls?.success?.trim())
+            back_urls.success = requestedBackUrls.success.trim();
+        else if (envBackSuccess)
+            back_urls.success = envBackSuccess;
+        if (requestedBackUrls?.pending?.trim())
+            back_urls.pending = requestedBackUrls.pending.trim();
+        else if (envBackPending)
+            back_urls.pending = envBackPending;
+        if (requestedBackUrls?.failure?.trim())
+            back_urls.failure = requestedBackUrls.failure.trim();
+        else if (envBackFailure)
+            back_urls.failure = envBackFailure;
         const hasBackUrls = Object.keys(back_urls).length > 0;
         const auto_return = back_urls.success ? "approved" : undefined;
         try {
