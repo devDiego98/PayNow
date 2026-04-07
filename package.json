@@ -20,7 +20,10 @@
     "type-check": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:wipe": "docker compose -f docker/docker-compose.yml down -v",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d db redis"
   },
   "dependencies": {
     "@prisma/client": "^5.16.0",
