@@ -61,6 +61,9 @@ class MercadoPagoPaymentLinkService {
             metadata.recipient_alias = dto.alias.trim();
         if (dto.cbu?.trim())
             metadata.recipient_cbu = normalizeCbu(dto.cbu);
+        if (dto.commerceId != null && Number.isFinite(dto.commerceId)) {
+            metadata.commerce_id = String(Math.trunc(dto.commerceId));
+        }
         const client = new mercadopago_1.MercadoPagoConfig({ accessToken });
         const preference = new mercadopago_1.Preference(client);
         const notificationUrl = dto.notificationUrl?.trim() || process.env.MERCADOPAGO_NOTIFICATION_URL?.trim();

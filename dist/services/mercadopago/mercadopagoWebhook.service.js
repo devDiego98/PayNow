@@ -45,10 +45,57 @@ function logStoredPayment(mpPaymentId, payment) {
         currency: payment.currency_id,
     });
 }
+/**
+ * When Mercado Pago is configured to hit PayNow but orders live on Poneteweb, forward the same
+ * notification after we load the payment (so we can attach commerce_id / order_id query params).
+ */
+async function forwardPonetewebWebhookIfConfigured(req, payment) {
+    const base = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_URL?.trim();
+    if (!base)
+        return;
+    const target = new URL("/api/mercadopago", base.endsWith("/") ? base : `${base}/`);
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(req.query)) {
+        if (v === undefined || v === null)
+            continue;
+        if (Array.isArray(v)) {
+            for (const item of v)
+                params.append(k, String(item));
+        }
+        else {
+            params.set(k, String(v));
+        }
+    }
+    const meta = payment.metadata;
+    if (meta && typeof meta === "object" && meta !== null && "commerce_id" in meta) {
+        params.set("commerce_id", String(meta.commerce_id));
+    }
+    if (payment.external_reference != null && String(payment.external_reference).length > 0) {
+        params.set("order_id", String(payment.external_reference));
+    }
+    const headers = { "Content-Type": "application/json" };
+    const secret = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_SECRET?.trim();
+    if (secret)
+        headers["X-Poneteweb-Webhook-Forward-Secret"] = secret;
+    const res = await fetch(`${target.toString()}?${params.toString()}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body ?? {}),
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        // eslint-disable-next-line no-console -- operator visibility
+        console.warn("[webhook:mercadopago] forward to poneteweb failed", res.status, text);
+    }
+}
 /** Mercado Pago JSON webhook (Payments topic) or legacy query IPN. */
 function extractPaymentResourceIds(req) {
     const qTopic = req.query.topic;
     const qId = req.query.id;
+    const qDataId = req.query["data.id"];
+    if (req.query.type === "payment" && qDataId != null && String(qDataId).length > 0) {
+        return { paymentIds: [String(qDataId)] };
+    }
     if (qTopic === "payment" && qId != null && String(qId).length > 0) {
         return { paymentIds: [String(qId)] };
     }
@@ -179,6 +226,7 @@ class MercadoPagoWebhookService {
             await upsertPaymentRecord(payment, notificationJson, orderPreferenceId, merchantOrderId ?? null);
             logStoredPayment(pid, payment);
             mpPaymentIds.push(pid);
+            await forwardPonetewebWebhookIfConfigured(req, payment);
         }
         // eslint-disable-next-line no-console -- operator visibility
         console.log("[webhook:mercadopago] done", { mpPaymentIds });

@@ -47,10 +47,62 @@ function logStoredPayment(mpPaymentId: string, payment: PaymentResponse): void {
   });
 }
 
+/**
+ * When Mercado Pago is configured to hit PayNow but orders live on Poneteweb, forward the same
+ * notification after we load the payment (so we can attach commerce_id / order_id query params).
+ */
+async function forwardPonetewebWebhookIfConfigured(
+  req: Request,
+  payment: PaymentResponse
+): Promise<void> {
+  const base = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_URL?.trim();
+  if (!base) return;
+
+  const target = new URL("/api/mercadopago", base.endsWith("/") ? base : `${base}/`);
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) params.append(k, String(item));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  const meta = payment.metadata;
+  if (meta && typeof meta === "object" && meta !== null && "commerce_id" in meta) {
+    params.set("commerce_id", String((meta as { commerce_id?: unknown }).commerce_id));
+  }
+  if (payment.external_reference != null && String(payment.external_reference).length > 0) {
+    params.set("order_id", String(payment.external_reference));
+  }
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_SECRET?.trim();
+  if (secret) headers["X-Poneteweb-Webhook-Forward-Secret"] = secret;
+
+  const res = await fetch(`${target.toString()}?${params.toString()}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(req.body ?? {}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    // eslint-disable-next-line no-console -- operator visibility
+    console.warn("[webhook:mercadopago] forward to poneteweb failed", res.status, text);
+  }
+}
+
 /** Mercado Pago JSON webhook (Payments topic) or legacy query IPN. */
-function extractPaymentResourceIds(req: Request): { paymentIds: string[]; merchantOrderId?: string } {
+function extractPaymentResourceIds(req: Request): {
+  paymentIds: string[];
+  merchantOrderId?: string;
+} {
   const qTopic = req.query.topic;
   const qId = req.query.id;
+  const qDataId = req.query["data.id"];
+  if (req.query.type === "payment" && qDataId != null && String(qDataId).length > 0) {
+    return { paymentIds: [String(qDataId)] };
+  }
   if (qTopic === "payment" && qId != null && String(qId).length > 0) {
     return { paymentIds: [String(qId)] };
   }
@@ -66,10 +118,7 @@ function extractPaymentResourceIds(req: Request): { paymentIds: string[]; mercha
     return { paymentIds: [String(dataId)] };
   }
 
-  if (
-    (type === "topic_merchant_order_wh" || type === "merchant_order") &&
-    dataId != null
-  ) {
+  if ((type === "topic_merchant_order_wh" || type === "merchant_order") && dataId != null) {
     return { paymentIds: [], merchantOrderId: String(dataId) };
   }
 
@@ -85,7 +134,11 @@ async function fetchPayment(client: MercadoPagoConfig, id: string): Promise<Paym
   try {
     return await payment.get({ id });
   } catch (e) {
-    throw new ProviderError(mercadoPagoApiErrorMessage(e), "mercadopago", mercadoPagoApiErrorCode(e));
+    throw new ProviderError(
+      mercadoPagoApiErrorMessage(e),
+      "mercadopago",
+      mercadoPagoApiErrorCode(e)
+    );
   }
 }
 
@@ -94,7 +147,11 @@ async function fetchMerchantOrder(client: MercadoPagoConfig, merchantOrderId: st
   try {
     return await mo.get({ merchantOrderId });
   } catch (e) {
-    throw new ProviderError(mercadoPagoApiErrorMessage(e), "mercadopago", mercadoPagoApiErrorCode(e));
+    throw new ProviderError(
+      mercadoPagoApiErrorMessage(e),
+      "mercadopago",
+      mercadoPagoApiErrorCode(e)
+    );
   }
 }
 
@@ -130,8 +187,7 @@ async function upsertPaymentRecord(
       paymentMethodId: payment.payment_method_id ?? null,
       paymentTypeId: payment.payment_type_id ?? null,
       dateApproved: payment.date_approved ? new Date(payment.date_approved) : null,
-      notificationJson:
-        notificationJson === Prisma.JsonNull ? Prisma.JsonNull : notificationJson,
+      notificationJson: notificationJson === Prisma.JsonNull ? Prisma.JsonNull : notificationJson,
       paymentSnapshot: snapshotJson(payment),
     },
     update: {
@@ -146,8 +202,7 @@ async function upsertPaymentRecord(
       paymentMethodId: payment.payment_method_id ?? null,
       paymentTypeId: payment.payment_type_id ?? null,
       dateApproved: payment.date_approved ? new Date(payment.date_approved) : null,
-      notificationJson:
-        notificationJson === Prisma.JsonNull ? undefined : notificationJson,
+      notificationJson: notificationJson === Prisma.JsonNull ? undefined : notificationJson,
       paymentSnapshot: snapshotJson(payment),
     },
   });
@@ -165,7 +220,10 @@ export class MercadoPagoWebhookService {
     if (secret) {
       const xSig = req.headers["x-signature"];
       if (typeof xSig !== "string") {
-        throw new AppError("Missing x-signature header (configure MERCADOPAGO_WEBHOOK_SECRET in Mercado Pago)", 401);
+        throw new AppError(
+          "Missing x-signature header (configure MERCADOPAGO_WEBHOOK_SECRET in Mercado Pago)",
+          401
+        );
       }
       if (!verifyMercadoPagoWebhookSignature(req, secret)) {
         throw new AppError("Invalid Mercado Pago webhook signature", 401);
@@ -213,6 +271,7 @@ export class MercadoPagoWebhookService {
       );
       logStoredPayment(pid, payment);
       mpPaymentIds.push(pid);
+      await forwardPonetewebWebhookIfConfigured(req, payment);
     }
 
     // eslint-disable-next-line no-console -- operator visibility

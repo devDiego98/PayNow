@@ -20,6 +20,8 @@ export interface CreateMercadoPagoPaymentLinkDto {
    * Useful when the caller needs to route webhooks back to a specific commerce/order.
    */
   notificationUrl?: string;
+  /** Stored on the preference `metadata` so webhooks can resolve the commerce MP token (multi-tenant). */
+  commerceId?: number;
   /**
    * Optional per-request override for Mercado Pago's `back_urls` (Checkout Pro redirect URLs).
    * If omitted, server env (`MERCADOPAGO_BACK_URL_*`) is used.
@@ -109,6 +111,9 @@ export class MercadoPagoPaymentLinkService {
     };
     if (dto.alias?.trim()) metadata.recipient_alias = dto.alias.trim();
     if (dto.cbu?.trim()) metadata.recipient_cbu = normalizeCbu(dto.cbu);
+    if (dto.commerceId != null && Number.isFinite(dto.commerceId)) {
+      metadata.commerce_id = String(Math.trunc(dto.commerceId));
+    }
 
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);

@@ -50,6 +50,8 @@ export const createMercadoPagoPaymentLinkBodySchema = z.object({
   cbu: z.string().min(1).optional(),
   externalReference: z.string().min(1).optional(),
   payerEmail: z.string().email().optional(),
+  /** Passed through to preference metadata for downstream webhook routing (e.g. Poneteweb). */
+  commerceId: z.number().int().positive().optional(),
   notificationUrl: z.string().url().optional(),
   backUrls: z
     .object({

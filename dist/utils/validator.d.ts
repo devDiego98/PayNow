@@ -121,6 +121,8 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu: z.ZodOptional<z.ZodString>;
     externalReference: z.ZodOptional<z.ZodString>;
     payerEmail: z.ZodOptional<z.ZodString>;
+    /** Passed through to preference metadata for downstream webhook routing (e.g. Poneteweb). */
+    commerceId: z.ZodOptional<z.ZodNumber>;
     notificationUrl: z.ZodOptional<z.ZodString>;
     backUrls: z.ZodOptional<z.ZodObject<{
         success: z.ZodOptional<z.ZodString>;
@@ -144,6 +146,7 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu?: string | undefined;
     externalReference?: string | undefined;
     payerEmail?: string | undefined;
+    commerceId?: number | undefined;
     notificationUrl?: string | undefined;
     backUrls?: {
         pending?: string | undefined;
@@ -159,6 +162,7 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     cbu?: string | undefined;
     externalReference?: string | undefined;
     payerEmail?: string | undefined;
+    commerceId?: number | undefined;
     notificationUrl?: string | undefined;
     backUrls?: {
         pending?: string | undefined;
