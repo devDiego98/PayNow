@@ -14,7 +14,7 @@ Unified payment gateway API aggregating **Stripe**, **PayPal**, and **Mercado Pa
 
 ## What Docker is used for
 
-The compose file at [`docker/docker-compose.yml`](docker/docker-compose.yml) runs:
+The compose file at [`docker/docker-compose.yml`](docker/docker-compose.yml) runs: 
 
 | Service | Image | Purpose |
 |--------|--------|---------|
