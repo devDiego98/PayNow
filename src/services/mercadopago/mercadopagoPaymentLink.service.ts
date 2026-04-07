@@ -130,7 +130,12 @@ export class MercadoPagoPaymentLinkService {
     if (requestedBackUrls?.failure?.trim()) back_urls.failure = requestedBackUrls.failure.trim();
     else if (envBackFailure) back_urls.failure = envBackFailure;
     const hasBackUrls = Object.keys(back_urls).length > 0;
-    const auto_return = back_urls.success ? ("approved" as const) : undefined;
+    /**
+     * We intentionally avoid `auto_return` to prevent Mercado Pago rejecting preferences when
+     * `back_urls.success` is missing/empty/malformed in some environments. Redirects still work
+     * via `back_urls` alone.
+     */
+    const auto_return = undefined;
 
     try {
       const body = await preference.create({
