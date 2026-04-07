@@ -54,7 +54,7 @@ docker compose -f docker/docker-compose.yml up -d db redis
 npm install
 npm run prisma:generate
 npx prisma migrate dev
-npm run start
+npm run dev
 ```
 
 The API listens on **http://localhost:3000** (or the `PORT` in `.env`).  
@@ -81,7 +81,7 @@ npm run build
 npm run start:server
 ```
 
-`npm start` runs **Prisma Studio** and the compiled server, with optional ngrok; set `SKIP_NGROK=1` in `.env` if you want to skip ngrok (see comments in `.env.example`).
+`npm start` runs the server with optional ngrok; set `SKIP_NGROK=1` in `.env` if you want to skip ngrok (see comments in `.env.example`).
 
 ---
 
@@ -93,7 +93,7 @@ npm run start:server
 npm run prisma:studio
 ```
 
-`npm start` also launches Prisma Studio (same as above). Open the URL Prisma prints (usually **http://localhost:5555**).
+Open the URL Prisma prints (usually **http://localhost:5555**).
 
 **Command line** (with Docker DB running and credentials from compose):
 
@@ -110,8 +110,7 @@ psql postgresql://paygate:paygate@localhost:5433/paygate
 | Command | Description |
 |--------|-------------|
 | `npm run dev` | TypeScript dev server with reload |
-| `npm run build` then `npm start` | Compile, then run server + Prisma Studio (optional ngrok via `start-with-ngrok.cjs`) |
-| `npm run build` / `npm run start:server` | Compile and run compiled JS only (no Studio / ngrok) |
+| `npm run build` / `npm run start:server` | Compile and run compiled JS |
 | `npm test` | Run tests |
 | `npm run prisma:migrate` | Create/apply migrations in development |
 | `npm run prisma:studio` | Open Prisma Studio for the database |
