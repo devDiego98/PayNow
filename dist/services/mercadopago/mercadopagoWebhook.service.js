@@ -108,8 +108,7 @@ function extractPaymentResourceIds(req) {
     if (type === "payment" && dataId != null) {
         return { paymentIds: [String(dataId)] };
     }
-    if ((type === "topic_merchant_order_wh" || type === "merchant_order") &&
-        dataId != null) {
+    if ((type === "topic_merchant_order_wh" || type === "merchant_order") && dataId != null) {
         return { paymentIds: [], merchantOrderId: String(dataId) };
     }
     if (qTopic === "merchant_order" && qId != null) {

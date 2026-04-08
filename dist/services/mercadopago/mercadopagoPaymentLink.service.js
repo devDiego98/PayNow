@@ -92,6 +92,9 @@ class MercadoPagoPaymentLinkService {
          * via `back_urls` alone.
          */
         const auto_return = undefined;
+        const maxInstallments = dto.maxInstallments != null && Number.isFinite(dto.maxInstallments)
+            ? Math.min(36, Math.max(1, Math.trunc(dto.maxInstallments)))
+            : undefined;
         try {
             const body = await preference.create({
                 body: {
@@ -111,6 +114,9 @@ class MercadoPagoPaymentLinkService {
                     ...(hasBackUrls ? { back_urls } : {}),
                     ...(auto_return ? { auto_return } : {}),
                     payer: dto.payerEmail ? { email: dto.payerEmail } : undefined,
+                    ...(maxInstallments != null
+                        ? { payment_methods: { installments: maxInstallments } }
+                        : {}),
                 },
             });
             const preferenceId = body.id;

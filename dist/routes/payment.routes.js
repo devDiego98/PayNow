@@ -155,6 +155,7 @@ router.post("/", auth_middleware_1.authMiddleware, idempotency_middleware_1.requ
  *       **Funds** are collected by the Mercado Pago account linked to `MERCADOPAGO_ACCESS_TOKEN`.
  *       To create a link for a specific commerce, send `X-MercadoPago-Access-Token` with that commerce's access token.
  *       Optional `alias` / `cbu` are stored in preference metadata for reconciliation; they do not redirect settlement to a third-party bank account.
+ *       Optional `maxInstallments` (1–36) sets Checkout Pro card installments via `payment_methods.installments`.
  *       To restrict which alias/CBU clients may request, set `MERCADOPAGO_RECIPIENT_ALIAS` and/or `MERCADOPAGO_RECIPIENT_CBU` in the server environment.
  *     security:
  *       - BearerAuth: []

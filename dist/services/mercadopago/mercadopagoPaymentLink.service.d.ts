@@ -26,6 +26,8 @@ export interface CreateMercadoPagoPaymentLinkDto {
         pending?: string;
         failure?: string;
     };
+    /** Max credit-card installments for Checkout Pro (`payment_methods.installments`). Omit to use Mercado Pago defaults. */
+    maxInstallments?: number;
 }
 export interface MercadoPagoPaymentLinkResponse {
     preferenceId: string;

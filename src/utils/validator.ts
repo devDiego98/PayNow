@@ -60,6 +60,8 @@ export const createMercadoPagoPaymentLinkBodySchema = z.object({
       failure: z.string().url().optional(),
     })
     .optional(),
+  /** Maps to Mercado Pago `payment_methods.installments` (max card installments in Checkout Pro). */
+  maxInstallments: z.number().int().min(1).max(36).optional(),
 });
 
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;

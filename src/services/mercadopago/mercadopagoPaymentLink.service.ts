@@ -27,6 +27,8 @@ export interface CreateMercadoPagoPaymentLinkDto {
    * If omitted, server env (`MERCADOPAGO_BACK_URL_*`) is used.
    */
   backUrls?: { success?: string; pending?: string; failure?: string };
+  /** Max credit-card installments for Checkout Pro (`payment_methods.installments`). Omit to use Mercado Pago defaults. */
+  maxInstallments?: number;
 }
 
 export interface MercadoPagoPaymentLinkResponse {
@@ -142,6 +144,11 @@ export class MercadoPagoPaymentLinkService {
      */
     const auto_return = undefined;
 
+    const maxInstallments =
+      dto.maxInstallments != null && Number.isFinite(dto.maxInstallments)
+        ? Math.min(36, Math.max(1, Math.trunc(dto.maxInstallments)))
+        : undefined;
+
     try {
       const body = await preference.create({
         body: {
@@ -161,6 +168,9 @@ export class MercadoPagoPaymentLinkService {
           ...(hasBackUrls ? { back_urls } : {}),
           ...(auto_return ? { auto_return } : {}),
           payer: dto.payerEmail ? { email: dto.payerEmail } : undefined,
+          ...(maxInstallments != null
+            ? { payment_methods: { installments: maxInstallments } }
+            : {}),
         },
       });
 

@@ -1,4 +1,5 @@
 import request from "supertest";
+import { Preference } from "mercadopago";
 import { createApp } from "../../src/app";
 import { ProviderFactory } from "../../src/services/providers/provider.factory";
 
@@ -122,6 +123,33 @@ describe("POST /api/v1/payments/mercadopago/payment-link", () => {
     expect(res.body.preferenceId).toBe("pref-test-1");
     expect(res.body.initPoint).toContain("mercadopago");
     expect(res.body.recipient.alias).toBe("alias.test");
+  });
+
+  it("passes payment_methods.installments when maxInstallments is set", async () => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "TEST-token";
+    delete process.env.MERCADOPAGO_RECIPIENT_ALIAS;
+    delete process.env.MERCADOPAGO_RECIPIENT_CBU;
+
+    const res = await request(createApp())
+      .post("/api/v1/payments/mercadopago/payment-link")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-link-installments-1")
+      .send({
+        amount: 10000,
+        currency: "ARS",
+        title: "Test",
+        alias: "alias.test",
+        maxInstallments: 12,
+      });
+
+    expect(res.status).toBe(201);
+    const PreferenceMock = Preference as unknown as jest.Mock;
+    const last = PreferenceMock.mock.results[PreferenceMock.mock.results.length - 1]?.value;
+    expect(last?.create).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        payment_methods: { installments: 12 },
+      }),
+    });
   });
 
   it("accepts X-MercadoPago-Access-Token override when env token is unset", async () => {
