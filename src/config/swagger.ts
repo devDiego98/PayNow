@@ -217,6 +217,13 @@ const options: swaggerJsdoc.Options = {
               description:
                 "Maximum card installments for Checkout Pro (Mercado Pago `payment_methods.installments`). Omit to use MP defaults.",
             },
+            defaultInstallments: {
+              type: "integer",
+              minimum: 1,
+              maximum: 36,
+              description:
+                "Preselected installment count (`payment_methods.default_installments`). Must be ≤ maxInstallments.",
+            },
           },
         },
         MercadoPagoPaymentLinkResponse: {

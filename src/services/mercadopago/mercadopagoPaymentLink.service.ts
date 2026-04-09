@@ -29,6 +29,8 @@ export interface CreateMercadoPagoPaymentLinkDto {
   backUrls?: { success?: string; pending?: string; failure?: string };
   /** Max credit-card installments for Checkout Pro (`payment_methods.installments`). Omit to use Mercado Pago defaults. */
   maxInstallments?: number;
+  /** Preselected installment count (`payment_methods.default_installments`). Must not exceed `maxInstallments`. */
+  defaultInstallments?: number;
 }
 
 export interface MercadoPagoPaymentLinkResponse {
@@ -40,6 +42,13 @@ export interface MercadoPagoPaymentLinkResponse {
   currency: string;
   recipient: { alias?: string; cbu?: string };
   externalReference?: string;
+  /** Echo of Mercado Pago’s normalized `payment_methods` on the created preference (debugging). */
+  preferencePaymentMethods?: {
+    installments?: number;
+    default_installments?: number;
+    excluded_payment_methods?: unknown[];
+    excluded_payment_types?: unknown[];
+  };
 }
 
 function normalizeAlias(s: string): string {
@@ -149,6 +158,24 @@ export class MercadoPagoPaymentLinkService {
         ? Math.min(36, Math.max(1, Math.trunc(dto.maxInstallments)))
         : undefined;
 
+    let defaultInstallments: number | undefined;
+    if (
+      maxInstallments != null &&
+      dto.defaultInstallments != null &&
+      Number.isFinite(dto.defaultInstallments)
+    ) {
+      const d = Math.min(36, Math.max(1, Math.trunc(dto.defaultInstallments)));
+      defaultInstallments = Math.min(d, maxInstallments);
+    }
+
+    const paymentMethods =
+      maxInstallments != null
+        ? {
+            installments: maxInstallments,
+            ...(defaultInstallments != null ? { default_installments: defaultInstallments } : {}),
+          }
+        : undefined;
+
     try {
       const body = await preference.create({
         body: {
@@ -168,9 +195,7 @@ export class MercadoPagoPaymentLinkService {
           ...(hasBackUrls ? { back_urls } : {}),
           ...(auto_return ? { auto_return } : {}),
           payer: dto.payerEmail ? { email: dto.payerEmail } : undefined,
-          ...(maxInstallments != null
-            ? { payment_methods: { installments: maxInstallments } }
-            : {}),
+          ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
         },
       });
 
@@ -196,6 +221,7 @@ export class MercadoPagoPaymentLinkService {
           ...(dto.cbu?.trim() ? { cbu: normalizeCbu(dto.cbu) } : {}),
         },
         externalReference,
+        preferencePaymentMethods: body.payment_methods,
       };
 
       await this.idempotencyService.set(idempotencyKey, response);

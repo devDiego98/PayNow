@@ -139,6 +139,8 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     }>>;
     /** Maps to Mercado Pago `payment_methods.installments` (max card installments in Checkout Pro). */
     maxInstallments: z.ZodOptional<z.ZodNumber>;
+    /** Maps to Mercado Pago `payment_methods.default_installments` (preselected installment count; ≤ maxInstallments). */
+    defaultInstallments: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     amount: number;
     currency: string;
@@ -156,6 +158,7 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
         failure?: string | undefined;
     } | undefined;
     maxInstallments?: number | undefined;
+    defaultInstallments?: number | undefined;
 }, {
     amount: number;
     currency?: string | undefined;
@@ -173,6 +176,7 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
         failure?: string | undefined;
     } | undefined;
     maxInstallments?: number | undefined;
+    defaultInstallments?: number | undefined;
 }>;
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;
 //# sourceMappingURL=validator.d.ts.map

@@ -13,6 +13,7 @@ jest.mock("mercadopago", () => ({
       init_point: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-test-1",
       sandbox_init_point: "https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-test-1",
       collector_id: 999,
+      payment_methods: { installments: 12 },
     }),
   })),
 }));
@@ -123,6 +124,34 @@ describe("POST /api/v1/payments/mercadopago/payment-link", () => {
     expect(res.body.preferenceId).toBe("pref-test-1");
     expect(res.body.initPoint).toContain("mercadopago");
     expect(res.body.recipient.alias).toBe("alias.test");
+  });
+
+  it("passes default_installments when maxInstallments and defaultInstallments are set", async () => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "TEST-token";
+    delete process.env.MERCADOPAGO_RECIPIENT_ALIAS;
+    delete process.env.MERCADOPAGO_RECIPIENT_CBU;
+
+    const res = await request(createApp())
+      .post("/api/v1/payments/mercadopago/payment-link")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-link-default-inst-1")
+      .send({
+        amount: 10000,
+        currency: "ARS",
+        title: "Test",
+        alias: "alias.test",
+        maxInstallments: 12,
+        defaultInstallments: 3,
+      });
+
+    expect(res.status).toBe(201);
+    const PreferenceMock = Preference as unknown as jest.Mock;
+    const last = PreferenceMock.mock.results[PreferenceMock.mock.results.length - 1]?.value;
+    expect(last?.create).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        payment_methods: { installments: 12, default_installments: 3 },
+      }),
+    });
   });
 
   it("passes payment_methods.installments when maxInstallments is set", async () => {

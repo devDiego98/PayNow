@@ -28,6 +28,8 @@ export interface CreateMercadoPagoPaymentLinkDto {
     };
     /** Max credit-card installments for Checkout Pro (`payment_methods.installments`). Omit to use Mercado Pago defaults. */
     maxInstallments?: number;
+    /** Preselected installment count (`payment_methods.default_installments`). Must not exceed `maxInstallments`. */
+    defaultInstallments?: number;
 }
 export interface MercadoPagoPaymentLinkResponse {
     preferenceId: string;
@@ -41,6 +43,13 @@ export interface MercadoPagoPaymentLinkResponse {
         cbu?: string;
     };
     externalReference?: string;
+    /** Echo of Mercado Pago’s normalized `payment_methods` on the created preference (debugging). */
+    preferencePaymentMethods?: {
+        installments?: number;
+        default_installments?: number;
+        excluded_payment_methods?: unknown[];
+        excluded_payment_types?: unknown[];
+    };
 }
 export declare class MercadoPagoPaymentLinkService {
     private readonly idempotencyService;

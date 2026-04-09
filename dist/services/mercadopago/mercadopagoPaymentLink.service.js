@@ -95,6 +95,19 @@ class MercadoPagoPaymentLinkService {
         const maxInstallments = dto.maxInstallments != null && Number.isFinite(dto.maxInstallments)
             ? Math.min(36, Math.max(1, Math.trunc(dto.maxInstallments)))
             : undefined;
+        let defaultInstallments;
+        if (maxInstallments != null &&
+            dto.defaultInstallments != null &&
+            Number.isFinite(dto.defaultInstallments)) {
+            const d = Math.min(36, Math.max(1, Math.trunc(dto.defaultInstallments)));
+            defaultInstallments = Math.min(d, maxInstallments);
+        }
+        const paymentMethods = maxInstallments != null
+            ? {
+                installments: maxInstallments,
+                ...(defaultInstallments != null ? { default_installments: defaultInstallments } : {}),
+            }
+            : undefined;
         try {
             const body = await preference.create({
                 body: {
@@ -114,9 +127,7 @@ class MercadoPagoPaymentLinkService {
                     ...(hasBackUrls ? { back_urls } : {}),
                     ...(auto_return ? { auto_return } : {}),
                     payer: dto.payerEmail ? { email: dto.payerEmail } : undefined,
-                    ...(maxInstallments != null
-                        ? { payment_methods: { installments: maxInstallments } }
-                        : {}),
+                    ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
                 },
             });
             const preferenceId = body.id;
@@ -136,6 +147,7 @@ class MercadoPagoPaymentLinkService {
                     ...(dto.cbu?.trim() ? { cbu: normalizeCbu(dto.cbu) } : {}),
                 },
                 externalReference,
+                preferencePaymentMethods: body.payment_methods,
             };
             await this.idempotencyService.set(idempotencyKey, response);
             return response;

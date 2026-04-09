@@ -57,5 +57,7 @@ exports.createMercadoPagoPaymentLinkBodySchema = zod_1.z.object({
         .optional(),
     /** Maps to Mercado Pago `payment_methods.installments` (max card installments in Checkout Pro). */
     maxInstallments: zod_1.z.number().int().min(1).max(36).optional(),
+    /** Maps to Mercado Pago `payment_methods.default_installments` (preselected installment count; ≤ maxInstallments). */
+    defaultInstallments: zod_1.z.number().int().min(1).max(36).optional(),
 });
 //# sourceMappingURL=validator.js.map
