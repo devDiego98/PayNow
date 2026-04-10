@@ -22,6 +22,26 @@ jest.mock("mercadopago", () => ({
       init_point: "https://www.mercadopago.com.ar/subscriptions/checkout/v2?preapproval_id=preapproval-test-1",
       sandbox_init_point: null,
     }),
+    get: jest.fn().mockResolvedValue({
+      id: "preapproval-test-1",
+      status: "authorized",
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: 9999,
+        currency_id: "ARS",
+      },
+    }),
+    update: jest.fn().mockResolvedValue({
+      id: "preapproval-test-1",
+      status: "authorized",
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: 10000,
+        currency_id: "ARS",
+      },
+    }),
   })),
 }));
 
@@ -261,5 +281,55 @@ describe("POST /api/v1/payments/mercadopago/subscription-link", () => {
         metadata: expect.objectContaining({ commerce_id: "42", plan_id: "7" }),
       }),
     });
+  });
+});
+
+describe("PATCH /api/v1/payments/mercadopago/preapprovals/:preapprovalId", () => {
+  const prevToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+  afterEach(() => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = prevToken;
+  });
+
+  it("returns 200 with updated amount when token is set", async () => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "TEST-token";
+
+    const res = await request(createApp())
+      .patch("/api/v1/payments/mercadopago/preapprovals/preapproval-test-1")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-preapproval-amt-1")
+      .send({ amount: 1_000_000, currency: "ARS" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.preapprovalId).toBe("preapproval-test-1");
+    expect(res.body.amount).toBe(1_000_000);
+    expect(res.body.currency).toBe("ARS");
+
+    const PreApprovalMock = PreApproval as unknown as jest.Mock;
+    const last = PreApprovalMock.mock.results[PreApprovalMock.mock.results.length - 1]?.value;
+    expect(last?.get).toHaveBeenCalledWith({ id: "preapproval-test-1" });
+    expect(last?.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "preapproval-test-1",
+        body: expect.objectContaining({
+          auto_recurring: expect.objectContaining({
+            transaction_amount: 10000,
+            currency_id: "ARS",
+          }),
+        }),
+      })
+    );
+  });
+
+  it("returns 503 when MERCADOPAGO_ACCESS_TOKEN is unset", async () => {
+    delete process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+    const res = await request(createApp())
+      .patch("/api/v1/payments/mercadopago/preapprovals/preapproval-test-1")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-preapproval-amt-2")
+      .send({ amount: 500000 });
+
+    expect(res.status).toBe(503);
   });
 });

@@ -293,6 +293,40 @@ function getSwaggerJSDocOptions() {
                             externalReference: { type: "string" },
                         },
                     },
+                    MercadoPagoPreapprovalAmountUpdateRequest: {
+                        type: "object",
+                        required: ["amount"],
+                        properties: {
+                            amount: {
+                                type: "integer",
+                                description: "New recurring amount in smallest currency unit (e.g. ARS centavos), same as subscription-link",
+                                example: 1000000,
+                            },
+                            currency: {
+                                type: "string",
+                                description: "Optional; defaults to the preapproval’s current currency or ARS",
+                                example: "ARS",
+                            },
+                        },
+                    },
+                    MercadoPagoPreapprovalAmountUpdateResponse: {
+                        type: "object",
+                        properties: {
+                            preapprovalId: { type: "string" },
+                            amount: { type: "integer" },
+                            currency: { type: "string" },
+                            status: { type: "string" },
+                            autoRecurring: {
+                                type: "object",
+                                properties: {
+                                    transaction_amount: { type: "number" },
+                                    currency_id: { type: "string" },
+                                    frequency: { type: "number" },
+                                    frequency_type: { type: "string" },
+                                },
+                            },
+                        },
+                    },
                 },
                 responses: {
                     ValidationError: {

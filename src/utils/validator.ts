@@ -86,3 +86,13 @@ export const createMercadoPagoSubscriptionLinkBodySchema = z.object({
 export type CreateMercadoPagoSubscriptionLinkBody = z.infer<
   typeof createMercadoPagoSubscriptionLinkBodySchema
 >;
+
+/** Update recurring charge for an existing PreApproval (`preapprovalId` in URL). `amount` = smallest currency unit (e.g. centavos). */
+export const updateMercadoPagoPreapprovalAmountBodySchema = z.object({
+  amount: z.number().int().positive(),
+  currency: z.string().min(3).max(3).optional(),
+});
+
+export type UpdateMercadoPagoPreapprovalAmountBody = z.infer<
+  typeof updateMercadoPagoPreapprovalAmountBodySchema
+>;

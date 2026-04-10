@@ -31,9 +31,33 @@ export interface MercadoPagoSubscriptionLinkResponse {
     reason: string;
     externalReference?: string;
 }
+/** Body for updating recurring amount (same centavos convention as subscription-link). */
+export interface UpdateMercadoPagoPreapprovalAmountDto {
+    amount: number;
+    /** ISO currency; defaults to existing preapproval `currency_id` or ARS. */
+    currency?: string;
+}
+export interface MercadoPagoPreapprovalAmountUpdateResponse {
+    preapprovalId: string;
+    /** Echo: amount in smallest currency unit (e.g. centavos). */
+    amount: number;
+    currency: string;
+    status?: string;
+    autoRecurring?: {
+        transaction_amount?: number;
+        currency_id?: string;
+        frequency?: number;
+        frequency_type?: string;
+    };
+}
 export declare class MercadoPagoSubscriptionLinkService {
     private readonly idempotencyService;
     constructor(idempotencyService: IdempotencyService);
     createSubscriptionLink(dto: CreateMercadoPagoSubscriptionLinkDto, idempotencyKey: string, accessTokenOverride?: string): Promise<MercadoPagoSubscriptionLinkResponse>;
+    /**
+     * Updates `auto_recurring.transaction_amount` for an existing PreApproval (authorized subscription).
+     * Loads the current preapproval from Mercado Pago, merges `auto_recurring`, then calls the update API.
+     */
+    updatePreapprovalAmount(preapprovalId: string, dto: UpdateMercadoPagoPreapprovalAmountDto, idempotencyKey: string, accessTokenOverride?: string): Promise<MercadoPagoPreapprovalAmountUpdateResponse>;
 }
 //# sourceMappingURL=mercadopagoSubscriptionLink.service.d.ts.map

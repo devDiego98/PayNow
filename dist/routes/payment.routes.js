@@ -248,6 +248,58 @@ router.post("/mercadopago/payment-link", auth_middleware_1.authMiddleware, idemp
  *         description: Mercado Pago not configured
  */
 router.post("/mercadopago/subscription-link", auth_middleware_1.authMiddleware, idempotency_middleware_1.requireIdempotencyKey, (0, validation_middleware_1.validateBody)(validator_1.createMercadoPagoSubscriptionLinkBodySchema), paymentController.createMercadoPagoSubscriptionLink);
+/**
+ * @openapi
+ * /api/v1/payments/mercadopago/preapprovals/{preapprovalId}:
+ *   patch:
+ *     tags: [Payments]
+ *     summary: Update Mercado Pago PreApproval recurring amount
+ *     description: |
+ *       Loads the existing [preapproval](https://www.mercadopago.com.ar/developers/en/reference/subscriptions/_preapproval_id/put),
+ *       merges `auto_recurring` (frequency from current subscription), and sets a new `transaction_amount`.
+ *       Use the same `amount` convention as subscription-link (smallest currency unit, e.g. ARS centavos).
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: preapprovalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Mercado Pago PreApproval id (`preapproval_id` from subscription-link response)
+ *       - in: header
+ *         name: Idempotency-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: X-MercadoPago-Access-Token
+ *         required: false
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MercadoPagoPreapprovalAmountUpdateRequest'
+ *     responses:
+ *       200:
+ *         description: Preapproval updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MercadoPagoPreapprovalAmountUpdateResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       502:
+ *         $ref: '#/components/responses/ProviderError'
+ *       503:
+ *         description: Mercado Pago not configured
+ */
+router.patch("/mercadopago/preapprovals/:preapprovalId", auth_middleware_1.authMiddleware, idempotency_middleware_1.requireIdempotencyKey, (0, validation_middleware_1.validateBody)(validator_1.updateMercadoPagoPreapprovalAmountBodySchema), paymentController.updateMercadoPagoPreapprovalAmount);
 router.get("/", auth_middleware_1.authMiddleware, paymentController.listPayments);
 /**
  * @openapi

@@ -92,6 +92,77 @@ class MercadoPagoSubscriptionLinkService {
             throw new errors_1.ProviderError(msg, "mercadopago", code);
         }
     }
+    /**
+     * Updates `auto_recurring.transaction_amount` for an existing PreApproval (authorized subscription).
+     * Loads the current preapproval from Mercado Pago, merges `auto_recurring`, then calls the update API.
+     */
+    async updatePreapprovalAmount(preapprovalId, dto, idempotencyKey, accessTokenOverride) {
+        const id = preapprovalId?.trim();
+        if (!id) {
+            throw new errors_1.AppError("preapprovalId is required", 400);
+        }
+        const cached = await this.idempotencyService.get(idempotencyKey);
+        if (cached)
+            return cached;
+        const accessToken = accessTokenOverride?.trim() || process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
+        if (!accessToken) {
+            throw new errors_1.AppError("MERCADOPAGO_ACCESS_TOKEN is not configured", 503);
+        }
+        const unitAmount = Math.round(dto.amount) / 100;
+        if (unitAmount <= 0) {
+            throw new errors_1.AppError("amount must be positive", 400);
+        }
+        const client = new mercadopago_1.MercadoPagoConfig({ accessToken });
+        const preapprovalApi = new mercadopago_1.PreApproval(client);
+        try {
+            const getRes = await preapprovalApi.get({ id });
+            const current = getRes.body ?? getRes;
+            const ar = current.auto_recurring ?? {};
+            const currency = (dto.currency ?? ar.currency_id ?? "ARS").toUpperCase();
+            const updateBody = {
+                auto_recurring: {
+                    frequency: ar.frequency != null ? Number(ar.frequency) : 1,
+                    frequency_type: ar.frequency_type ?? "months",
+                    transaction_amount: unitAmount,
+                    currency_id: currency,
+                },
+            };
+            const updateRes = await preapprovalApi.update({
+                id,
+                // SDK update types are narrower than GET merge; MP accepts full auto_recurring.
+                body: updateBody,
+            });
+            const updated = updateRes.body ?? updateRes;
+            const response = {
+                preapprovalId: String(updated.id ?? id),
+                amount: dto.amount,
+                currency,
+                status: updated.status,
+                autoRecurring: updated.auto_recurring
+                    ? {
+                        transaction_amount: updated.auto_recurring.transaction_amount,
+                        currency_id: updated.auto_recurring.currency_id,
+                        frequency: updated.auto_recurring.frequency,
+                        frequency_type: updated.auto_recurring.frequency_type,
+                    }
+                    : {
+                        transaction_amount: unitAmount,
+                        currency_id: currency,
+                        frequency: updateBody.auto_recurring.frequency,
+                        frequency_type: updateBody.auto_recurring.frequency_type,
+                    },
+            };
+            await this.idempotencyService.set(idempotencyKey, response);
+            return response;
+        }
+        catch (e) {
+            if (e instanceof errors_1.AppError || e instanceof errors_1.ProviderError)
+                throw e;
+            const msg = (0, mercadopagoErrors_1.mercadoPagoApiErrorMessage)(e);
+            const code = (0, mercadopagoErrors_1.mercadoPagoApiErrorCode)(e);
+            throw new errors_1.ProviderError(msg, "mercadopago", code);
+        }
+    }
 }
 exports.MercadoPagoSubscriptionLinkService = MercadoPagoSubscriptionLinkService;
 //# sourceMappingURL=mercadopagoSubscriptionLink.service.js.map

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMercadoPagoSubscriptionLinkBodySchema = exports.createMercadoPagoPaymentLinkBodySchema = exports.getCardsQuerySchema = exports.addCardBodySchema = exports.createPaymentBodySchema = void 0;
+exports.updateMercadoPagoPreapprovalAmountBodySchema = exports.createMercadoPagoSubscriptionLinkBodySchema = exports.createMercadoPagoPaymentLinkBodySchema = exports.getCardsQuerySchema = exports.addCardBodySchema = exports.createPaymentBodySchema = void 0;
 const zod_1 = require("zod");
 exports.createPaymentBodySchema = zod_1.z
     .object({
@@ -73,5 +73,10 @@ exports.createMercadoPagoSubscriptionLinkBodySchema = zod_1.z.object({
     planId: zod_1.z.number().int().positive().optional(),
     notificationUrl: zod_1.z.string().url().optional(),
     externalReference: zod_1.z.string().min(1).optional(),
+});
+/** Update recurring charge for an existing PreApproval (`preapprovalId` in URL). `amount` = smallest currency unit (e.g. centavos). */
+exports.updateMercadoPagoPreapprovalAmountBodySchema = zod_1.z.object({
+    amount: zod_1.z.number().int().positive(),
+    currency: zod_1.z.string().min(3).max(3).optional(),
 });
 //# sourceMappingURL=validator.js.map

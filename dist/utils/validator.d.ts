@@ -218,4 +218,16 @@ export declare const createMercadoPagoSubscriptionLinkBodySchema: z.ZodObject<{
     planId?: number | undefined;
 }>;
 export type CreateMercadoPagoSubscriptionLinkBody = z.infer<typeof createMercadoPagoSubscriptionLinkBodySchema>;
+/** Update recurring charge for an existing PreApproval (`preapprovalId` in URL). `amount` = smallest currency unit (e.g. centavos). */
+export declare const updateMercadoPagoPreapprovalAmountBodySchema: z.ZodObject<{
+    amount: z.ZodNumber;
+    currency: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    amount: number;
+    currency?: string | undefined;
+}, {
+    amount: number;
+    currency?: string | undefined;
+}>;
+export type UpdateMercadoPagoPreapprovalAmountBody = z.infer<typeof updateMercadoPagoPreapprovalAmountBodySchema>;
 //# sourceMappingURL=validator.d.ts.map

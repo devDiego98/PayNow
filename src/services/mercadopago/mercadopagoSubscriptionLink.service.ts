@@ -1,5 +1,8 @@
 import { MercadoPagoConfig, PreApproval } from "mercadopago";
-import type { PreApprovalResponse } from "mercadopago/dist/clients/preApproval/commonTypes";
+import type {
+  AutoRecurringResponse,
+  PreApprovalResponse,
+} from "mercadopago/dist/clients/preApproval/commonTypes";
 import { IdempotencyService } from "../core/idempotency.service";
 import { AppError, ProviderError } from "../../utils/errors";
 import { mercadoPagoApiErrorCode, mercadoPagoApiErrorMessage } from "../../utils/mercadopagoErrors";
@@ -36,6 +39,27 @@ export interface MercadoPagoSubscriptionLinkResponse {
   currency: string;
   reason: string;
   externalReference?: string;
+}
+
+/** Body for updating recurring amount (same centavos convention as subscription-link). */
+export interface UpdateMercadoPagoPreapprovalAmountDto {
+  amount: number;
+  /** ISO currency; defaults to existing preapproval `currency_id` or ARS. */
+  currency?: string;
+}
+
+export interface MercadoPagoPreapprovalAmountUpdateResponse {
+  preapprovalId: string;
+  /** Echo: amount in smallest currency unit (e.g. centavos). */
+  amount: number;
+  currency: string;
+  status?: string;
+  autoRecurring?: {
+    transaction_amount?: number;
+    currency_id?: string;
+    frequency?: number;
+    frequency_type?: string;
+  };
 }
 
 type PreApprovalCreateBody = {
@@ -150,6 +174,90 @@ export class MercadoPagoSubscriptionLinkService {
         currency,
         reason: dto.reason.trim(),
         externalReference,
+      };
+
+      await this.idempotencyService.set(idempotencyKey, response);
+      return response;
+    } catch (e) {
+      if (e instanceof AppError || e instanceof ProviderError) throw e;
+      const msg = mercadoPagoApiErrorMessage(e);
+      const code = mercadoPagoApiErrorCode(e);
+      throw new ProviderError(msg, "mercadopago", code);
+    }
+  }
+
+  /**
+   * Updates `auto_recurring.transaction_amount` for an existing PreApproval (authorized subscription).
+   * Loads the current preapproval from Mercado Pago, merges `auto_recurring`, then calls the update API.
+   */
+  async updatePreapprovalAmount(
+    preapprovalId: string,
+    dto: UpdateMercadoPagoPreapprovalAmountDto,
+    idempotencyKey: string,
+    accessTokenOverride?: string
+  ): Promise<MercadoPagoPreapprovalAmountUpdateResponse> {
+    const id = preapprovalId?.trim();
+    if (!id) {
+      throw new AppError("preapprovalId is required", 400);
+    }
+
+    const cached = await this.idempotencyService.get(idempotencyKey);
+    if (cached) return cached as MercadoPagoPreapprovalAmountUpdateResponse;
+
+    const accessToken = accessTokenOverride?.trim() || process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
+    if (!accessToken) {
+      throw new AppError("MERCADOPAGO_ACCESS_TOKEN is not configured", 503);
+    }
+
+    const unitAmount = Math.round(dto.amount) / 100;
+    if (unitAmount <= 0) {
+      throw new AppError("amount must be positive", 400);
+    }
+
+    const client = new MercadoPagoConfig({ accessToken });
+    const preapprovalApi = new PreApproval(client);
+
+    try {
+      const getRes = await preapprovalApi.get({ id });
+      const current = (getRes as { body?: PreApprovalResponse }).body ?? (getRes as PreApprovalResponse);
+      const ar: Partial<AutoRecurringResponse> = current.auto_recurring ?? {};
+
+      const currency = (dto.currency ?? ar.currency_id ?? "ARS").toUpperCase();
+
+      const updateBody = {
+        auto_recurring: {
+          frequency: ar.frequency != null ? Number(ar.frequency) : 1,
+          frequency_type: ar.frequency_type ?? "months",
+          transaction_amount: unitAmount,
+          currency_id: currency,
+        },
+      };
+
+      const updateRes = await preapprovalApi.update({
+        id,
+        // SDK update types are narrower than GET merge; MP accepts full auto_recurring.
+        body: updateBody as Parameters<InstanceType<typeof PreApproval>["update"]>[0]["body"],
+      });
+      const updated = (updateRes as { body?: PreApprovalResponse }).body ?? (updateRes as PreApprovalResponse);
+
+      const response: MercadoPagoPreapprovalAmountUpdateResponse = {
+        preapprovalId: String(updated.id ?? id),
+        amount: dto.amount,
+        currency,
+        status: updated.status,
+        autoRecurring: updated.auto_recurring
+          ? {
+              transaction_amount: updated.auto_recurring.transaction_amount,
+              currency_id: updated.auto_recurring.currency_id,
+              frequency: updated.auto_recurring.frequency,
+              frequency_type: updated.auto_recurring.frequency_type,
+            }
+          : {
+              transaction_amount: unitAmount,
+              currency_id: currency,
+              frequency: updateBody.auto_recurring.frequency,
+              frequency_type: updateBody.auto_recurring.frequency_type,
+            },
       };
 
       await this.idempotencyService.set(idempotencyKey, response);

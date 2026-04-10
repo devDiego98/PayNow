@@ -79,6 +79,25 @@ export const createMercadoPagoSubscriptionLink: RequestHandler = async (req, res
   }
 };
 
+export const updateMercadoPagoPreapprovalAmount: RequestHandler = async (req, res, next) => {
+  try {
+    const raw = req.headers["idempotency-key"];
+    const idempotencyKey = (Array.isArray(raw) ? raw[0] : raw) ?? "";
+    const tokenHeader = req.headers["x-mercadopago-access-token"];
+    const accessTokenOverride = (Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader) ?? undefined;
+    const preapprovalId = String(req.params.preapprovalId ?? "");
+    const result = await mercadopagoSubscriptionLinkService.updatePreapprovalAmount(
+      preapprovalId,
+      req.body,
+      idempotencyKey,
+      accessTokenOverride
+    );
+    res.status(200).json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
 /** Full DB rows (including JSON snapshots). Same filters/pagination as `GET /api/v1/payments`. */
 export const listMercadoPagoPaymentRecords: RequestHandler = async (req, res, next) => {
   try {
