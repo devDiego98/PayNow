@@ -105,12 +105,20 @@ psql postgresql://paygate:paygate@localhost:5433/paygate
 
 ---
 
+## API documentation (Swagger UI)
+
+Interactive docs: **`GET /api/docs`** (e.g. `http://localhost:3000/api/docs`).
+
+`npm run build` runs `swagger-jsdoc` over `src/routes` and `src/controllers`, then writes **`dist/openapi.json`**. At runtime the server prefers that file when present so **deployments without a `src/` tree** (Docker-only `dist/`) still show the full spec, including `POST /api/v1/payments/mercadopago/subscription-link`.
+
+---
+
 ## Useful scripts
 
 | Command | Description |
 |--------|-------------|
 | `npm run dev` | TypeScript dev server with reload |
-| `npm run build` then `npm start` | Compile, then run server + Prisma Studio (optional ngrok via `start-with-ngrok.cjs`) |
+| `npm run build` then `npm start` | Compile, emit `dist/openapi.json`, then run server + Prisma Studio (optional ngrok via `start-with-ngrok.cjs`) |
 | `npm run build` / `npm run start:server` | Compile and run compiled JS only (no Studio / ngrok) |
 | `npm test` | Run tests |
 | `npm run prisma:migrate` | Create/apply migrations in development |

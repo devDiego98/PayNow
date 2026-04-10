@@ -179,4 +179,43 @@ export declare const createMercadoPagoPaymentLinkBodySchema: z.ZodObject<{
     defaultInstallments?: number | undefined;
 }>;
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;
+/** PreApproval subscription checkout — `amount` is smallest currency unit (e.g. centavos), same as payment-link. */
+export declare const createMercadoPagoSubscriptionLinkBodySchema: z.ZodObject<{
+    amount: z.ZodNumber;
+    currency: z.ZodDefault<z.ZodString>;
+    reason: z.ZodString;
+    payerEmail: z.ZodString;
+    frequency: z.ZodNumber;
+    frequencyType: z.ZodLiteral<"months">;
+    backUrl: z.ZodString;
+    commerceId: z.ZodOptional<z.ZodNumber>;
+    planId: z.ZodOptional<z.ZodNumber>;
+    notificationUrl: z.ZodOptional<z.ZodString>;
+    externalReference: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    amount: number;
+    currency: string;
+    payerEmail: string;
+    reason: string;
+    frequency: number;
+    frequencyType: "months";
+    backUrl: string;
+    externalReference?: string | undefined;
+    commerceId?: number | undefined;
+    notificationUrl?: string | undefined;
+    planId?: number | undefined;
+}, {
+    amount: number;
+    payerEmail: string;
+    reason: string;
+    frequency: number;
+    frequencyType: "months";
+    backUrl: string;
+    currency?: string | undefined;
+    externalReference?: string | undefined;
+    commerceId?: number | undefined;
+    notificationUrl?: string | undefined;
+    planId?: number | undefined;
+}>;
+export type CreateMercadoPagoSubscriptionLinkBody = z.infer<typeof createMercadoPagoSubscriptionLinkBodySchema>;
 //# sourceMappingURL=validator.d.ts.map

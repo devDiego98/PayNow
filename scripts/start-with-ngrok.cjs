@@ -11,6 +11,13 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 require("dotenv").config({ path: path.join(root, ".env") });
+
+// Render (and most PaaS images) do not ship the ngrok CLI. Without this, `npm start` tries to
+// spawn ngrok, fails, and never runs the API — the edge returns 502 Bad Gateway.
+if (process.env.RENDER && process.env.SKIP_NGROK !== "0" && process.env.SKIP_NGROK !== "false") {
+  process.env.SKIP_NGROK = "1";
+}
+
 const serverEntry = path.join(root, "dist", "server.js");
 const port = String(process.env.PORT || 3000);
 

@@ -242,6 +242,50 @@ router.post(
 
 router.get("/", authMiddleware, paymentController.listPayments);
 
+/**
+ * @openapi
+ * /api/v1/payments/mercadopago/payment-records:
+ *   get:
+ *     tags: [Payments]
+ *     summary: List Mercado Pago payment records (full DB rows)
+ *     description: |
+ *       Same filters as `GET /api/v1/payments`, but returns raw persisted rows (including JSON snapshots)
+ *       for debugging and reconciliation. Requires Bearer auth.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string }
+ *       - in: query
+ *         name: externalReference
+ *         schema: { type: string }
+ *       - in: query
+ *         name: mpPaymentId
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 100 }
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       200:
+ *         description: Records and pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 records:
+ *                   type: array
+ *                   items: { type: object }
+ *                 total: { type: integer }
+ *                 limit: { type: integer }
+ *                 offset: { type: integer }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
 router.get(
   "/mercadopago/payment-records",
   authMiddleware,

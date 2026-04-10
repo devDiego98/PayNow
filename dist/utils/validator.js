@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMercadoPagoPaymentLinkBodySchema = exports.getCardsQuerySchema = exports.addCardBodySchema = exports.createPaymentBodySchema = void 0;
+exports.createMercadoPagoSubscriptionLinkBodySchema = exports.createMercadoPagoPaymentLinkBodySchema = exports.getCardsQuerySchema = exports.addCardBodySchema = exports.createPaymentBodySchema = void 0;
 const zod_1 = require("zod");
 exports.createPaymentBodySchema = zod_1.z
     .object({
@@ -59,5 +59,19 @@ exports.createMercadoPagoPaymentLinkBodySchema = zod_1.z.object({
     maxInstallments: zod_1.z.number().int().min(1).max(36).optional(),
     /** Maps to Mercado Pago `payment_methods.default_installments` (preselected installment count; ≤ maxInstallments). */
     defaultInstallments: zod_1.z.number().int().min(1).max(36).optional(),
+});
+/** PreApproval subscription checkout — `amount` is smallest currency unit (e.g. centavos), same as payment-link. */
+exports.createMercadoPagoSubscriptionLinkBodySchema = zod_1.z.object({
+    amount: zod_1.z.number().int().positive(),
+    currency: zod_1.z.string().min(3).max(3).default("ARS"),
+    reason: zod_1.z.string().min(1),
+    payerEmail: zod_1.z.string().email(),
+    frequency: zod_1.z.number().int().min(1).max(365),
+    frequencyType: zod_1.z.literal("months"),
+    backUrl: zod_1.z.string().url(),
+    commerceId: zod_1.z.number().int().positive().optional(),
+    planId: zod_1.z.number().int().positive().optional(),
+    notificationUrl: zod_1.z.string().url().optional(),
+    externalReference: zod_1.z.string().min(1).optional(),
 });
 //# sourceMappingURL=validator.js.map

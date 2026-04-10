@@ -1,0 +1,1194 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PayGate Aggregator API",
+    "version": "1.0.0",
+    "description": "Unified Payment Gateway Aggregation API. Integrate Stripe, PayPal, and Mercado Pago through a single normalized interface.",
+    "contact": {
+      "name": "API Support",
+      "email": "support@paygate.io"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development"
+    },
+    {
+      "url": "https://api.paygate.io",
+      "description": "Production"
+    },
+    {
+      "url": "/",
+      "description": "Same origin (use with Try it out)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Payments",
+      "description": "Create and list payments (Stripe, PayPal, Mercado Pago)"
+    },
+    {
+      "name": "Refunds",
+      "description": "Refunds (provider-specific; some routes not implemented yet)"
+    },
+    {
+      "name": "Webhooks",
+      "description": "Provider callbacks (Mercado Pago notifications)"
+    },
+    {
+      "name": "System",
+      "description": "Health and diagnostics"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key as Bearer token"
+      }
+    },
+    "schemas": {
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "amount",
+          "currency",
+          "description",
+          "customer"
+        ],
+        "description": "Provide exactly one of paymentMethod (new token/pm/tok) or savedCardId (from GET /api/v1/cards).",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "paypal",
+              "mercadopago"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Amount in smallest currency unit (cents/centavos)",
+            "example": 1500
+          },
+          "currency": {
+            "type": "string",
+            "example": "ARS",
+            "description": "ISO 4217 currency code"
+          },
+          "description": {
+            "type": "string",
+            "example": "Order #8821"
+          },
+          "customer": {
+            "type": "object",
+            "required": [
+              "email",
+              "name"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "paymentMethod": {
+            "type": "object",
+            "required": [
+              "type",
+              "token"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card",
+                  "bank_transfer",
+                  "wallet"
+                ]
+              },
+              "token": {
+                "type": "string",
+                "description": "pm_..., tok_visa, etc."
+              }
+            }
+          },
+          "savedCardId": {
+            "type": "string",
+            "description": "Id from POST /api/v1/cards — pay with that saved card (Stripe only; customer.email must match)."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "pay_01J3X8K9MABCDEF12345"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "paypal",
+              "mercadopago"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "providerTransactionId": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "PaymentListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "mercadopago"
+            ]
+          },
+          "mpPaymentId": {
+            "type": "string"
+          },
+          "externalReference": {
+            "type": "string",
+            "nullable": true
+          },
+          "preferenceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "merchantOrderId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusDetail": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "nullable": true,
+            "description": "Transaction amount as decimal string (Mercado Pago)"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "payerEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethodId": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentTypeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateApproved": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PaymentListResponse": {
+        "type": "object",
+        "properties": {
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentListItem"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "CreateRefundRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "providerTransactionId"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "paypal",
+              "mercadopago"
+            ]
+          },
+          "providerTransactionId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Partial refund amount. Omit for full refund."
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RefundResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "providerRefundId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MercadoPagoPaymentLinkRequest": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount in smallest currency unit (e.g. centavos for ARS), same as POST /api/v1/payments",
+            "example": 100050
+          },
+          "currency": {
+            "type": "string",
+            "example": "ARS",
+            "description": "ISO 4217 (Mercado Pago site, e.g. ARS for Argentina)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Line item title shown in checkout"
+          },
+          "description": {
+            "type": "string"
+          },
+          "alias": {
+            "type": "string",
+            "description": "Optional payee alias for metadata (and validation if server env is set)"
+          },
+          "cbu": {
+            "type": "string",
+            "description": "Optional CBU/CVU for metadata (digits; spaces stripped)"
+          },
+          "externalReference": {
+            "type": "string",
+            "description": "Your reference id; generated if omitted"
+          },
+          "payerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "maxInstallments": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 36,
+            "description": "Maximum card installments for Checkout Pro (Mercado Pago `payment_methods.installments`). Omit to use MP defaults."
+          },
+          "defaultInstallments": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 36,
+            "description": "Preselected installment count (`payment_methods.default_installments`). Must be ≤ maxInstallments."
+          }
+        }
+      },
+      "MercadoPagoPaymentLinkResponse": {
+        "type": "object",
+        "properties": {
+          "preferenceId": {
+            "type": "string"
+          },
+          "initPoint": {
+            "type": "string",
+            "format": "uri",
+            "description": "Open in browser or app to complete payment"
+          },
+          "sandboxInitPoint": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "collectorId": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "object",
+            "properties": {
+              "alias": {
+                "type": "string"
+              },
+              "cbu": {
+                "type": "string"
+              }
+            }
+          },
+          "externalReference": {
+            "type": "string"
+          }
+        }
+      },
+      "MercadoPagoSubscriptionLinkRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "reason",
+          "payerEmail",
+          "frequency",
+          "frequencyType",
+          "backUrl"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount in smallest currency unit (e.g. ARS centavos), converted to Mercado Pago `transaction_amount`",
+            "example": 999900
+          },
+          "currency": {
+            "type": "string",
+            "example": "ARS"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Plan or product name shown to the payer"
+          },
+          "payerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "frequency": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Billing every N months (e.g. 1 monthly, 12 yearly)"
+          },
+          "frequencyType": {
+            "type": "string",
+            "enum": [
+              "months"
+            ]
+          },
+          "backUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Redirect after subscription checkout"
+          },
+          "commerceId": {
+            "type": "integer",
+            "description": "Stored in metadata for webhook routing"
+          },
+          "planId": {
+            "type": "integer",
+            "description": "Stored in metadata for webhook routing"
+          },
+          "notificationUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Mercado Pago `notification_url` (defaults to MERCADOPAGO_NOTIFICATION_URL on PayNow)"
+          },
+          "externalReference": {
+            "type": "string"
+          }
+        }
+      },
+      "MercadoPagoSubscriptionLinkResponse": {
+        "type": "object",
+        "properties": {
+          "preapprovalId": {
+            "type": "string"
+          },
+          "initPoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sandboxInitPoint": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "externalReference": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Validation error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ProviderError": {
+        "description": "Payment provider error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string",
+                  "example": "stripe"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/cards": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Save a card for repeat payments (Stripe)",
+        "description": "Sends a Stripe **PaymentMethod** id (`pm_...`) from [Stripe.js / Elements](https://stripe.com/docs/payments/accept-a-payment).\nCreates a Stripe Customer and stores the card. Use the returned `id` as `savedCardId` on `POST /api/v1/payments`.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "name",
+                  "paymentMethodId"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "paymentMethodId": {
+                    "type": "string",
+                    "description": "Stripe PaymentMethod id (pm_...)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Card saved"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List saved cards for an email",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "email",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "email"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of saved cards (ids to use as savedCardId)"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Create a payment",
+        "description": "Charges the selected provider. When `API_KEY_SECRET` is set on the server, send it as a Bearer token.\n\n**Stripe test mode:** use `paymentMethod.token` = `tok_visa` (or other [test tokens](https://stripe.com/docs/testing#cards)) with `sk_test_...` keys,\nor omit `paymentMethod` and pass `savedCardId` from `POST /api/v1/cards` (same `customer.email` as when the card was saved).\nSet `STRIPE_PAYMENT_RETURN_URL` in `.env` if Stripe requires a return URL.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Unique per logical payment; repeats within 24h return the same response. Swagger UI fills a new random UUID on each docs page load."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentRequest"
+              },
+              "examples": {
+                "stripeTestTokVisa": {
+                  "summary": "Stripe — test token (sk_test)",
+                  "value": {
+                    "provider": "stripe",
+                    "amount": 2000,
+                    "currency": "usd",
+                    "description": "Swagger test payment",
+                    "customer": {
+                      "email": "test@example.com",
+                      "name": "Test User"
+                    },
+                    "paymentMethod": {
+                      "type": "card",
+                      "token": "tok_visa"
+                    }
+                  }
+                },
+                "stripeSavedCard": {
+                  "summary": "Stripe — saved card id from GET /cards",
+                  "value": {
+                    "provider": "stripe",
+                    "amount": 2000,
+                    "currency": "usd",
+                    "description": "Pay with saved card",
+                    "customer": {
+                      "email": "test@example.com",
+                      "name": "Test User"
+                    },
+                    "savedCardId": "REPLACE_WITH_ID_FROM_GET_CARDS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "$ref": "#/components/responses/ProviderError"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List payments",
+        "description": "Returns persisted **Mercado Pago** payments (from webhooks). Stripe/PayPal charges are not stored in this table yet.\nQuery: `status`, `externalReference`, `mpPaymentId`, `limit` (default 100, max 500), `offset`.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            },
+            "example": "approved"
+          },
+          {
+            "in": "query",
+            "name": "externalReference",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mpPaymentId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/mercadopago/payment-link": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Create Mercado Pago Checkout Pro payment link",
+        "description": "Creates a [preference](https://www.mercadopago.com.ar/developers/en/reference/preferences/_checkout_preferences/post)\nand returns `initPoint` — the URL to open Checkout (web or Mercado Pago app on mobile).\n\n**Funds** are collected by the Mercado Pago account linked to `MERCADOPAGO_ACCESS_TOKEN`.\nTo create a link for a specific commerce, send `X-MercadoPago-Access-Token` with that commerce's access token.\nOptional `alias` / `cbu` are stored in preference metadata for reconciliation; they do not redirect settlement to a third-party bank account.\nOptional `maxInstallments` (1–36) sets Checkout Pro card installments via `payment_methods.installments`.\nTo restrict which alias/CBU clients may request, set `MERCADOPAGO_RECIPIENT_ALIAS` and/or `MERCADOPAGO_RECIPIENT_CBU` in the server environment.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-MercadoPago-Access-Token",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional per-request Mercado Pago Access Token (to generate links under the commerce that owns the token)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MercadoPagoPaymentLinkRequest"
+              },
+              "example": {
+                "amount": 100050,
+                "currency": "ARS",
+                "title": "Invoice 42",
+                "alias": "mi.alias.mp",
+                "cbu": "0000003100000000000000"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Preference created; open `initPoint` to pay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MercadoPagoPaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "$ref": "#/components/responses/ProviderError"
+          },
+          "503": {
+            "description": "Mercado Pago not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/mercadopago/subscription-link": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Create Mercado Pago PreApproval subscription checkout link",
+        "description": "Creates a [preapproval](https://www.mercadopago.com.ar/developers/en/reference/subscriptions/_preapproval/post)\nand returns `initPoint` for the subscription checkout. Webhooks for `payment` and `subscription_preapproval`\nhit `POST /api/v1/webhooks/mercadopago` on this server (or your `notificationUrl`); when `PONETEWEB_MP_WEBHOOK_FORWARD_URL`\nis set, they are forwarded to Poneteweb like Checkout Pro payments.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-MercadoPago-Access-Token",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MercadoPagoSubscriptionLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Preapproval created; open `initPoint` to authorize the subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MercadoPagoSubscriptionLinkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "$ref": "#/components/responses/ProviderError"
+          },
+          "503": {
+            "description": "Mercado Pago not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/mercadopago/payment-records": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List Mercado Pago payment records (full DB rows)",
+        "description": "Same filters as `GET /api/v1/payments`, but returns raw persisted rows (including JSON snapshots)\nfor debugging and reconciliation. Requires Bearer auth.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "externalReference",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mpPaymentId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Records and pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "records": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get payment by id",
+        "description": "Not implemented yet — returns 501.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "501": {
+            "description": "Not implemented"
+          }
+        }
+      }
+    },
+    "/api/v1/refunds": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Create a refund",
+        "description": "Not implemented yet — returns 501. (No auth middleware on this route yet.)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRefundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "501": {
+            "description": "Not implemented"
+          }
+        }
+      }
+    },
+    "/api/v1/refunds/{id}": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Get refund by id",
+        "description": "Not implemented yet — returns 501. (No auth middleware on this route yet.)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "501": {
+            "description": "Not implemented"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/{provider}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Provider webhook (Mercado Pago)",
+        "description": "**Mercado Pago** sends JSON notifications here when `MERCADOPAGO_NOTIFICATION_URL` points to this path\n(or when configured in the Mercado Pago Developer Dashboard). The server validates `x-signature` when\n`MERCADOPAGO_WEBHOOK_SECRET` is set, then loads the payment from the Mercado Pago API and stores it in\n`mercadopago_payment_records`. Treat **`status: approved`** (and `dateApproved`) as proof of payment.\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mercadopago"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification accepted"
+          },
+          "401": {
+            "description": "Invalid or missing webhook signature"
+          },
+          "501": {
+            "description": "Provider not implemented"
+          },
+          "503": {
+            "description": "Mercado Pago token not configured"
+          }
+        }
+      }
+    }
+  }
+}

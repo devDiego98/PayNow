@@ -201,7 +201,98 @@ router.post("/", auth_middleware_1.authMiddleware, idempotency_middleware_1.requ
  *         description: Mercado Pago not configured
  */
 router.post("/mercadopago/payment-link", auth_middleware_1.authMiddleware, idempotency_middleware_1.requireIdempotencyKey, (0, validation_middleware_1.validateBody)(validator_1.createMercadoPagoPaymentLinkBodySchema), paymentController.createMercadoPagoPaymentLink);
+/**
+ * @openapi
+ * /api/v1/payments/mercadopago/subscription-link:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Create Mercado Pago PreApproval subscription checkout link
+ *     description: |
+ *       Creates a [preapproval](https://www.mercadopago.com.ar/developers/en/reference/subscriptions/_preapproval/post)
+ *       and returns `initPoint` for the subscription checkout. Webhooks for `payment` and `subscription_preapproval`
+ *       hit `POST /api/v1/webhooks/mercadopago` on this server (or your `notificationUrl`); when `PONETEWEB_MP_WEBHOOK_FORWARD_URL`
+ *       is set, they are forwarded to Poneteweb like Checkout Pro payments.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: Idempotency-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: X-MercadoPago-Access-Token
+ *         required: false
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MercadoPagoSubscriptionLinkRequest'
+ *     responses:
+ *       201:
+ *         description: Preapproval created; open `initPoint` to authorize the subscription
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MercadoPagoSubscriptionLinkResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       502:
+ *         $ref: '#/components/responses/ProviderError'
+ *       503:
+ *         description: Mercado Pago not configured
+ */
+router.post("/mercadopago/subscription-link", auth_middleware_1.authMiddleware, idempotency_middleware_1.requireIdempotencyKey, (0, validation_middleware_1.validateBody)(validator_1.createMercadoPagoSubscriptionLinkBodySchema), paymentController.createMercadoPagoSubscriptionLink);
 router.get("/", auth_middleware_1.authMiddleware, paymentController.listPayments);
+/**
+ * @openapi
+ * /api/v1/payments/mercadopago/payment-records:
+ *   get:
+ *     tags: [Payments]
+ *     summary: List Mercado Pago payment records (full DB rows)
+ *     description: |
+ *       Same filters as `GET /api/v1/payments`, but returns raw persisted rows (including JSON snapshots)
+ *       for debugging and reconciliation. Requires Bearer auth.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string }
+ *       - in: query
+ *         name: externalReference
+ *         schema: { type: string }
+ *       - in: query
+ *         name: mpPaymentId
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 100 }
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       200:
+ *         description: Records and pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 records:
+ *                   type: array
+ *                   items: { type: object }
+ *                 total: { type: integer }
+ *                 limit: { type: integer }
+ *                 offset: { type: integer }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
 router.get("/mercadopago/payment-records", auth_middleware_1.authMiddleware, paymentController.listMercadoPagoPaymentRecords);
 /**
  * @openapi
