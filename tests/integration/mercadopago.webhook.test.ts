@@ -23,6 +23,12 @@ const mockPaymentGet = jest.fn().mockResolvedValue({
   payment_type_id: "account_money",
 });
 
+const mockPreapprovalGet = jest.fn().mockResolvedValue({
+  id: "pre-abc",
+  status: "authorized",
+  metadata: { commerce_id: "5" },
+});
+
 jest.mock("mercadopago", () => ({
   MercadoPagoConfig: jest.fn().mockImplementation(() => ({})),
   Payment: jest.fn().mockImplementation(() => ({
@@ -30,6 +36,9 @@ jest.mock("mercadopago", () => ({
   })),
   MerchantOrder: jest.fn().mockImplementation(() => ({
     get: jest.fn(),
+  })),
+  PreApproval: jest.fn().mockImplementation(() => ({
+    get: mockPreapprovalGet,
   })),
 }));
 
@@ -41,6 +50,7 @@ describe("POST /api/v1/webhooks/mercadopago", () => {
     process.env.MERCADOPAGO_ACCESS_TOKEN = "TEST-token";
     delete process.env.MERCADOPAGO_WEBHOOK_SECRET;
     mockPaymentGet.mockClear();
+    mockPreapprovalGet.mockClear();
     jest.mocked(prisma.mercadoPagoPaymentRecord.upsert).mockClear();
   });
 
@@ -77,5 +87,34 @@ describe("POST /api/v1/webhooks/mercadopago", () => {
       });
 
     expect(res.status).toBe(401);
+  });
+
+  it("loads preapproval from API for subscription_preapproval and returns mpPreapprovalIds", async () => {
+    const res = await request(createApp())
+      .post("/api/v1/webhooks/mercadopago")
+      .send({
+        type: "subscription_preapproval",
+        data: { id: "pre-abc" },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.received).toBe(true);
+    expect(res.body.processed).toBe(true);
+    expect(res.body.mpPreapprovalIds).toEqual(["pre-abc"]);
+    expect(mockPreapprovalGet).toHaveBeenCalledWith({ id: "pre-abc" });
+  });
+
+  it("treats subscription_authorized_payment as a payment id", async () => {
+    const res = await request(createApp())
+      .post("/api/v1/webhooks/mercadopago")
+      .send({
+        type: "subscription_authorized_payment",
+        data: { id: "987654321" },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.processed).toBe(true);
+    expect(res.body.mpPaymentIds).toEqual(["987654321"]);
+    expect(mockPaymentGet).toHaveBeenCalledWith({ id: "987654321" });
   });
 });

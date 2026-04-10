@@ -1,5 +1,5 @@
 import request from "supertest";
-import { Preference } from "mercadopago";
+import { Preference, PreApproval } from "mercadopago";
 import { createApp } from "../../src/app";
 import { ProviderFactory } from "../../src/services/providers/provider.factory";
 
@@ -14,6 +14,13 @@ jest.mock("mercadopago", () => ({
       sandbox_init_point: "https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-test-1",
       collector_id: 999,
       payment_methods: { installments: 12 },
+    }),
+  })),
+  PreApproval: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockResolvedValue({
+      id: "preapproval-test-1",
+      init_point: "https://www.mercadopago.com.ar/subscriptions/checkout/v2?preapproval_id=preapproval-test-1",
+      sandbox_init_point: null,
     }),
   })),
 }));
@@ -213,5 +220,46 @@ describe("POST /api/v1/payments/mercadopago/payment-link", () => {
       .send({ amount: 1000, currency: "ARS" });
 
     expect(res.status).toBe(503);
+  });
+});
+
+describe("POST /api/v1/payments/mercadopago/subscription-link", () => {
+  const prevToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+  afterEach(() => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = prevToken;
+  });
+
+  it("returns 201 with preapprovalId and initPoint when token is set", async () => {
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "TEST-token";
+
+    const res = await request(createApp())
+      .post("/api/v1/payments/mercadopago/subscription-link")
+      .set("Authorization", "Bearer test-api-key")
+      .set("Idempotency-Key", "mp-sub-1")
+      .send({
+        amount: 999900,
+        currency: "ARS",
+        reason: "Plan Pro",
+        payerEmail: "payer@test.com",
+        frequency: 1,
+        frequencyType: "months",
+        backUrl: "https://example.com/admin?subscription=success",
+        commerceId: 42,
+        planId: 7,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.preapprovalId).toBe("preapproval-test-1");
+    expect(res.body.initPoint).toContain("mercadopago");
+    const PreApprovalMock = PreApproval as unknown as jest.Mock;
+    const last = PreApprovalMock.mock.results[PreApprovalMock.mock.results.length - 1]?.value;
+    expect(last?.create).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        reason: "Plan Pro",
+        payer_email: "payer@test.com",
+        metadata: expect.objectContaining({ commerce_id: "42", plan_id: "7" }),
+      }),
+    });
   });
 });

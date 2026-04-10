@@ -8,10 +8,12 @@ import {
   queryMercadoPagoPaymentRecords,
 } from "../services/core/mercadopagoPaymentRecords.query";
 import { MercadoPagoPaymentLinkService } from "../services/mercadopago/mercadopagoPaymentLink.service";
+import { MercadoPagoSubscriptionLinkService } from "../services/mercadopago/mercadopagoSubscriptionLink.service";
 
 const idempotencyService = new IdempotencyService();
 const paymentService = new PaymentService(idempotencyService, new RetryService());
 const mercadopagoPaymentLinkService = new MercadoPagoPaymentLinkService(idempotencyService);
+const mercadopagoSubscriptionLinkService = new MercadoPagoSubscriptionLinkService(idempotencyService);
 
 export const createPayment: RequestHandler = async (req, res, next) => {
   try {
@@ -50,6 +52,23 @@ export const createMercadoPagoPaymentLink: RequestHandler = async (req, res, nex
     const tokenHeader = req.headers["x-mercadopago-access-token"];
     const accessTokenOverride = (Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader) ?? undefined;
     const result = await mercadopagoPaymentLinkService.createPaymentLink(
+      req.body,
+      idempotencyKey,
+      accessTokenOverride
+    );
+    res.status(201).json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const createMercadoPagoSubscriptionLink: RequestHandler = async (req, res, next) => {
+  try {
+    const raw = req.headers["idempotency-key"];
+    const idempotencyKey = (Array.isArray(raw) ? raw[0] : raw) ?? "";
+    const tokenHeader = req.headers["x-mercadopago-access-token"];
+    const accessTokenOverride = (Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader) ?? undefined;
+    const result = await mercadopagoSubscriptionLinkService.createSubscriptionLink(
       req.body,
       idempotencyKey,
       accessTokenOverride

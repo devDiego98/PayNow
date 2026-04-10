@@ -1,4 +1,5 @@
-import { MercadoPagoConfig, MerchantOrder, Payment } from "mercadopago";
+import { MercadoPagoConfig, MerchantOrder, Payment, PreApproval } from "mercadopago";
+import type { PreApprovalResponse } from "mercadopago/dist/clients/preApproval/commonTypes";
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import type { Request } from "express";
 import { Prisma } from "@prisma/client";
@@ -51,6 +52,10 @@ function logStoredPayment(mpPaymentId: string, payment: PaymentResponse): void {
  * When Mercado Pago is configured to hit PayNow but orders live on Poneteweb, forward the same
  * notification after we load the payment (so we can attach commerce_id / order_id query params).
  */
+function buildPonetewebForwardUrl(base: string): URL {
+  return new URL("/api/mercadopago", base.endsWith("/") ? base : `${base}/`);
+}
+
 async function forwardPonetewebWebhookIfConfigured(
   req: Request,
   payment: PaymentResponse
@@ -58,7 +63,7 @@ async function forwardPonetewebWebhookIfConfigured(
   const base = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_URL?.trim();
   if (!base) return;
 
-  const target = new URL("/api/mercadopago", base.endsWith("/") ? base : `${base}/`);
+  const target = buildPonetewebForwardUrl(base);
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(req.query)) {
     if (v === undefined || v === null) continue;
@@ -92,41 +97,109 @@ async function forwardPonetewebWebhookIfConfigured(
   }
 }
 
-/** Mercado Pago JSON webhook (Payments topic) or legacy query IPN. */
-function extractPaymentResourceIds(req: Request): {
+/**
+ * Same as payment forward, but after loading a PreApproval — used for subscription_preapproval notifications.
+ */
+async function forwardPonetewebPreapprovalWebhookIfConfigured(
+  req: Request,
+  preapproval: PreApprovalResponse
+): Promise<void> {
+  const base = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_URL?.trim();
+  if (!base) return;
+
+  const target = buildPonetewebForwardUrl(base);
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) params.append(k, String(item));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  const meta = (preapproval as PreApprovalResponse & { metadata?: Record<string, unknown> }).metadata;
+  if (meta && typeof meta === "object" && meta !== null && "commerce_id" in meta) {
+    params.set("commerce_id", String(meta.commerce_id));
+  }
+  if (preapproval.id != null && String(preapproval.id).length > 0) {
+    params.set("preapproval_id", String(preapproval.id));
+  }
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env.PONETEWEB_MP_WEBHOOK_FORWARD_SECRET?.trim();
+  if (secret) headers["X-Poneteweb-Webhook-Forward-Secret"] = secret;
+
+  const res = await fetch(`${target.toString()}?${params.toString()}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(req.body ?? {}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    // eslint-disable-next-line no-console -- operator visibility
+    console.warn("[webhook:mercadopago] forward preapproval to poneteweb failed", res.status, text);
+  }
+}
+
+/** Mercado Pago JSON webhook (payments, merchant orders, subscriptions) or legacy query IPN. */
+function extractMercadoPagoWebhookResourceIds(req: Request): {
   paymentIds: string[];
   merchantOrderId?: string;
+  preapprovalIds: string[];
 } {
   const qTopic = req.query.topic;
   const qId = req.query.id;
   const qDataId = req.query["data.id"];
+
+  if (
+    (qTopic === "subscription_preapproval" || qTopic === "preapproval") &&
+    qId != null &&
+    String(qId).length > 0
+  ) {
+    return { paymentIds: [], preapprovalIds: [String(qId)] };
+  }
+  if (qTopic === "subscription_authorized_payment" && qId != null && String(qId).length > 0) {
+    return { paymentIds: [String(qId)], preapprovalIds: [] };
+  }
+
   if (req.query.type === "payment" && qDataId != null && String(qDataId).length > 0) {
-    return { paymentIds: [String(qDataId)] };
+    return { paymentIds: [String(qDataId)], preapprovalIds: [] };
   }
   if (qTopic === "payment" && qId != null && String(qId).length > 0) {
-    return { paymentIds: [String(qId)] };
+    return { paymentIds: [String(qId)], preapprovalIds: [] };
   }
 
   const body = parseWebhookBody(req.body);
-  if (!body) return { paymentIds: [] };
+  if (!body) return { paymentIds: [], preapprovalIds: [] };
 
   const type = String(body.type ?? "");
   const data = body.data as Record<string, unknown> | undefined;
   const dataId = data?.id;
 
+  if (type === "subscription_authorized_payment" && dataId != null) {
+    return { paymentIds: [String(dataId)], preapprovalIds: [] };
+  }
+
+  if (
+    (type === "subscription_preapproval" || type === "preapproval") &&
+    dataId != null
+  ) {
+    return { paymentIds: [], preapprovalIds: [String(dataId)] };
+  }
+
   if (type === "payment" && dataId != null) {
-    return { paymentIds: [String(dataId)] };
+    return { paymentIds: [String(dataId)], preapprovalIds: [] };
   }
 
   if ((type === "topic_merchant_order_wh" || type === "merchant_order") && dataId != null) {
-    return { paymentIds: [], merchantOrderId: String(dataId) };
+    return { paymentIds: [], merchantOrderId: String(dataId), preapprovalIds: [] };
   }
 
   if (qTopic === "merchant_order" && qId != null) {
-    return { paymentIds: [], merchantOrderId: String(qId) };
+    return { paymentIds: [], merchantOrderId: String(qId), preapprovalIds: [] };
   }
 
-  return { paymentIds: [] };
+  return { paymentIds: [], preapprovalIds: [] };
 }
 
 async function fetchPayment(client: MercadoPagoConfig, id: string): Promise<PaymentResponse> {
@@ -146,6 +219,19 @@ async function fetchMerchantOrder(client: MercadoPagoConfig, merchantOrderId: st
   const mo = new MerchantOrder(client);
   try {
     return await mo.get({ merchantOrderId });
+  } catch (e) {
+    throw new ProviderError(
+      mercadoPagoApiErrorMessage(e),
+      "mercadopago",
+      mercadoPagoApiErrorCode(e)
+    );
+  }
+}
+
+async function fetchPreapproval(client: MercadoPagoConfig, id: string): Promise<PreApprovalResponse> {
+  const pa = new PreApproval(client);
+  try {
+    return (await pa.get({ id })) as PreApprovalResponse;
   } catch (e) {
     throw new ProviderError(
       mercadoPagoApiErrorMessage(e),
@@ -210,10 +296,14 @@ async function upsertPaymentRecord(
 
 export class MercadoPagoWebhookService {
   /**
-   * Validates signature (when secret is set), loads payment(s) from the Mercado Pago API, persists rows.
-   * Always use API response as source of truth — never trust the webhook body alone.
+   * Validates signature (when secret is set), loads payment(s) and/or preapproval(s) from the Mercado Pago API,
+   * persists payment rows, and forwards to Poneteweb when configured (same as payment flow).
    */
-  async handleNotification(req: Request): Promise<{ processed: boolean; mpPaymentIds: string[] }> {
+  async handleNotification(req: Request): Promise<{
+    processed: boolean;
+    mpPaymentIds: string[];
+    mpPreapprovalIds?: string[];
+  }> {
     logIncomingWebhook(req);
 
     const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
@@ -238,7 +328,8 @@ export class MercadoPagoWebhookService {
       ? (snapshotJson(body) as Prisma.InputJsonValue)
       : Prisma.JsonNull;
 
-    const { paymentIds: directIds, merchantOrderId } = extractPaymentResourceIds(req);
+    const { paymentIds: directIds, merchantOrderId, preapprovalIds: directPreapprovalIds } =
+      extractMercadoPagoWebhookResourceIds(req);
 
     let paymentIds = [...directIds];
     let orderPreferenceId: string | null = null;
@@ -253,13 +344,8 @@ export class MercadoPagoWebhookService {
       paymentIds = [...new Set([...paymentIds, ...fromOrder])];
     }
 
-    if (paymentIds.length === 0) {
-      // eslint-disable-next-line no-console -- operator visibility
-      console.log("[webhook:mercadopago] no payment id in notification — skipped fetch");
-      return { processed: false, mpPaymentIds: [] };
-    }
-
     const mpPaymentIds: string[] = [];
+    const mpPreapprovalIds: string[] = [];
 
     for (const pid of paymentIds) {
       const payment = await fetchPayment(client, pid);
@@ -274,9 +360,32 @@ export class MercadoPagoWebhookService {
       await forwardPonetewebWebhookIfConfigured(req, payment);
     }
 
-    // eslint-disable-next-line no-console -- operator visibility
-    console.log("[webhook:mercadopago] done", { mpPaymentIds });
+    for (const preId of directPreapprovalIds) {
+      const preapproval = await fetchPreapproval(client, preId);
+      mpPreapprovalIds.push(preId);
+      await forwardPonetewebPreapprovalWebhookIfConfigured(req, preapproval);
+      // eslint-disable-next-line no-console -- operator visibility
+      console.log("[webhook:mercadopago] preapproval loaded", {
+        preapprovalId: preId,
+        status: preapproval.status,
+      });
+    }
 
-    return { processed: true, mpPaymentIds };
+    const processed = mpPaymentIds.length > 0 || mpPreapprovalIds.length > 0;
+
+    if (!processed) {
+      // eslint-disable-next-line no-console -- operator visibility
+      console.log("[webhook:mercadopago] no payment or preapproval id in notification — skipped fetch");
+      return { processed: false, mpPaymentIds: [] };
+    }
+
+    // eslint-disable-next-line no-console -- operator visibility
+    console.log("[webhook:mercadopago] done", { mpPaymentIds, mpPreapprovalIds });
+
+    return {
+      processed: true,
+      mpPaymentIds,
+      ...(mpPreapprovalIds.length > 0 ? { mpPreapprovalIds } : {}),
+    };
   }
 }

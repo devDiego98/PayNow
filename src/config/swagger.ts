@@ -249,6 +249,48 @@ const options: swaggerJsdoc.Options = {
             externalReference: { type: "string" },
           },
         },
+        MercadoPagoSubscriptionLinkRequest: {
+          type: "object",
+          required: ["amount", "reason", "payerEmail", "frequency", "frequencyType", "backUrl"],
+          properties: {
+            amount: {
+              type: "integer",
+              description:
+                "Amount in smallest currency unit (e.g. ARS centavos), converted to Mercado Pago `transaction_amount`",
+              example: 999900,
+            },
+            currency: { type: "string", example: "ARS" },
+            reason: { type: "string", description: "Plan or product name shown to the payer" },
+            payerEmail: { type: "string", format: "email" },
+            frequency: {
+              type: "integer",
+              minimum: 1,
+              description: "Billing every N months (e.g. 1 monthly, 12 yearly)",
+            },
+            frequencyType: { type: "string", enum: ["months"] },
+            backUrl: { type: "string", format: "uri", description: "Redirect after subscription checkout" },
+            commerceId: { type: "integer", description: "Stored in metadata for webhook routing" },
+            planId: { type: "integer", description: "Stored in metadata for webhook routing" },
+            notificationUrl: {
+              type: "string",
+              format: "uri",
+              description: "Mercado Pago `notification_url` (defaults to MERCADOPAGO_NOTIFICATION_URL on PayNow)",
+            },
+            externalReference: { type: "string" },
+          },
+        },
+        MercadoPagoSubscriptionLinkResponse: {
+          type: "object",
+          properties: {
+            preapprovalId: { type: "string" },
+            initPoint: { type: "string", format: "uri" },
+            sandboxInitPoint: { type: "string", nullable: true, format: "uri" },
+            amount: { type: "integer" },
+            currency: { type: "string" },
+            reason: { type: "string" },
+            externalReference: { type: "string" },
+          },
+        },
       },
       responses: {
         ValidationError: {

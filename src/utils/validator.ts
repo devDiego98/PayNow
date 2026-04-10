@@ -67,3 +67,22 @@ export const createMercadoPagoPaymentLinkBodySchema = z.object({
 });
 
 export type CreateMercadoPagoPaymentLinkBody = z.infer<typeof createMercadoPagoPaymentLinkBodySchema>;
+
+/** PreApproval subscription checkout — `amount` is smallest currency unit (e.g. centavos), same as payment-link. */
+export const createMercadoPagoSubscriptionLinkBodySchema = z.object({
+  amount: z.number().int().positive(),
+  currency: z.string().min(3).max(3).default("ARS"),
+  reason: z.string().min(1),
+  payerEmail: z.string().email(),
+  frequency: z.number().int().min(1).max(365),
+  frequencyType: z.literal("months"),
+  backUrl: z.string().url(),
+  commerceId: z.number().int().positive().optional(),
+  planId: z.number().int().positive().optional(),
+  notificationUrl: z.string().url().optional(),
+  externalReference: z.string().min(1).optional(),
+});
+
+export type CreateMercadoPagoSubscriptionLinkBody = z.infer<
+  typeof createMercadoPagoSubscriptionLinkBodySchema
+>;

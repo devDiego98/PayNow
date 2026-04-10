@@ -3,7 +3,11 @@ import * as paymentController from "../controllers/payment.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireIdempotencyKey } from "../middleware/idempotency.middleware";
 import { validateBody } from "../middleware/validation.middleware";
-import { createMercadoPagoPaymentLinkBodySchema, createPaymentBodySchema } from "../utils/validator";
+import {
+  createMercadoPagoPaymentLinkBodySchema,
+  createMercadoPagoSubscriptionLinkBodySchema,
+  createPaymentBodySchema,
+} from "../utils/validator";
 
 const router = Router();
 
@@ -180,6 +184,60 @@ router.post(
   requireIdempotencyKey,
   validateBody(createMercadoPagoPaymentLinkBodySchema),
   paymentController.createMercadoPagoPaymentLink
+);
+
+/**
+ * @openapi
+ * /api/v1/payments/mercadopago/subscription-link:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Create Mercado Pago PreApproval subscription checkout link
+ *     description: |
+ *       Creates a [preapproval](https://www.mercadopago.com.ar/developers/en/reference/subscriptions/_preapproval/post)
+ *       and returns `initPoint` for the subscription checkout. Webhooks for `payment` and `subscription_preapproval`
+ *       hit `POST /api/v1/webhooks/mercadopago` on this server (or your `notificationUrl`); when `PONETEWEB_MP_WEBHOOK_FORWARD_URL`
+ *       is set, they are forwarded to Poneteweb like Checkout Pro payments.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: Idempotency-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: X-MercadoPago-Access-Token
+ *         required: false
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MercadoPagoSubscriptionLinkRequest'
+ *     responses:
+ *       201:
+ *         description: Preapproval created; open `initPoint` to authorize the subscription
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MercadoPagoSubscriptionLinkResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       502:
+ *         $ref: '#/components/responses/ProviderError'
+ *       503:
+ *         description: Mercado Pago not configured
+ */
+router.post(
+  "/mercadopago/subscription-link",
+  authMiddleware,
+  requireIdempotencyKey,
+  validateBody(createMercadoPagoSubscriptionLinkBodySchema),
+  paymentController.createMercadoPagoSubscriptionLink
 );
 
 router.get("/", authMiddleware, paymentController.listPayments);
