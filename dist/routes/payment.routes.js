@@ -252,6 +252,7 @@ router.post("/mercadopago/subscription-link", auth_middleware_1.authMiddleware, 
  * @openapi
  * /api/v1/payments/mercadopago/preapprovals/{preapprovalId}:
  *   patch:
+ *     operationId: updateMercadoPagoPreapprovalAmount
  *     tags: [Payments]
  *     summary: Update Mercado Pago PreApproval recurring amount
  *     description: |

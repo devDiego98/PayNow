@@ -245,6 +245,7 @@ router.post(
  * @openapi
  * /api/v1/payments/mercadopago/preapprovals/{preapprovalId}:
  *   patch:
+ *     operationId: updateMercadoPagoPreapprovalAmount
  *     tags: [Payments]
  *     summary: Update Mercado Pago PreApproval recurring amount
  *     description: |

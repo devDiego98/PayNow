@@ -1051,6 +1051,7 @@
     },
     "/api/v1/payments/mercadopago/preapprovals/{preapprovalId}": {
       "patch": {
+        "operationId": "updateMercadoPagoPreapprovalAmount",
         "tags": [
           "Payments"
         ],
