@@ -3,8 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadEnv = loadEnv;
 const zod_1 = require("zod");
 const envSchema = zod_1.z.object({
-    NODE_ENV: zod_1.z.enum(["development", "test", "production"]).default("development"),
+    NODE_ENV: zod_1.z
+        .enum(["development", "test", "production", "staging"])
+        .default("development"),
     PORT: zod_1.z.coerce.number().default(3000),
+    /** Comma-separated browser origins (e.g. http://localhost:5173). If unset, any Origin is allowed (reflect). */
+    CORS_ORIGIN: zod_1.z.string().optional(),
     DATABASE_URL: zod_1.z.string().url().optional(),
     REDIS_URL: zod_1.z.string().optional(),
     API_KEY_SECRET: zod_1.z.string().optional(),

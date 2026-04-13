@@ -2,7 +2,27 @@
   "name": "paygate-aggregator",
   "version": "1.0.0",
   "description": "Unified Payment Gateway Aggregation API — Stripe, PayPal, Mercado Pago",
-  "main": "dist/server.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./app": {
+      "types": "./dist/app.d.ts",
+      "require": "./dist/app.js",
+      "default": "./dist/app.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "prisma",
+    "scripts"
+  ],
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc && node scripts/export-openapi.cjs",
